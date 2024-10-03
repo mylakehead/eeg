@@ -1,0 +1,12 @@
+{
+  "EEG-ITNet": {
+    "hyperparameters": {
+      "epochs": 10,
+      "rate": 0.00003
+    },
+    "dataset": {
+      "root": "/Users/hongkang/github/mylakehead/eeg/.dataset/SEED_IV",
+      "eeg_raw_data": "eeg_raw_data"
+    }
+  }
+}
