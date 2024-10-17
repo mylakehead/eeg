@@ -62,7 +62,7 @@ def subject_file_map(folder):
 
     pattern = r'(\d+)_(\d{8})\.mat'
     for root, _, files in os.walk(folder):
-        paths = root.split('/')
+        paths = root.split(os.sep)
         session = paths[-1]
 
         for file_name in files:
