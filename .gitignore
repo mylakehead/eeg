@@ -166,3 +166,5 @@ cython_debug/
 *.keras
 
 local_template.json
+
+.vscode/launch.json
