@@ -3,14 +3,19 @@ import sys
 import json
 import getopt
 
-from data.seed_iv import Subject
-from pre.seed_iv import pre_process
-from model.eeg_itnet import train
-
 
 class Config:
-    def __init__(self, eeg_it_net):
-        self.eeg_it_net = eeg_it_net
+    def __init__(self, data):
+        self.active = data['active']
+
+        self.dataset = data['dataset']
+        self.dataset['eeg_raw_data_abs_path'] = os.path.join(
+            data['dataset']['root_path'],
+            data['dataset']['eeg_raw_data_path']
+        )
+
+        self.eeg_it_net = data['EEG-ITNet']
+        self.vit = data['ViT']
 
 
 def parse_opt(argv):
@@ -33,25 +38,21 @@ def parse_opt(argv):
 def parse_config(config_file):
     with open(config_file, 'r') as f:
         data = json.load(f)
-        config = Config(data['EEG-ITNet'])
-        return config
+        return data
 
 
 def main(argv):
     config_file = parse_opt(argv)
-    config = parse_config(config_file)
+    data = parse_config(config_file)
+    config = Config(data)
 
-    eeg_raw_data_path = os.path.join(config.eeg_it_net['dataset']['root'], config.eeg_it_net['dataset']['eeg_raw_data'])
-
-    (
-        s1_train, s2_train, s2_test, s3_train, s3_test, c_s1_train_label,
-        c_s2_train_label, c_s2_test_label, c_s3_train_label, c_s3_test_label
-    ) = pre_process(eeg_raw_data_path, Subject.THREE)
-
-    train(
-        s1_train, s2_train, s2_test, s3_train, s3_test, c_s1_train_label,
-        c_s2_train_label, c_s2_test_label, c_s3_train_label, c_s3_test_label, Subject.THREE.value
-    )
+    active = data['active']
+    if active == 'ViT':
+        from train.vit import start
+        start(config)
+    elif active == 'EEG-ITNet':
+        from train.eeg_itnet import start
+        start(config)
 
 
 if __name__ == '__main__':
