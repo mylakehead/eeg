@@ -1,183 +1,179 @@
+from typing import Tuple
+
 import torch
-import torch.nn as nn
-from torch import Tensor
-from torch.nn.functional import softmax
+from torch import nn
 
-from einops import rearrange
-from einops.layers.torch import Rearrange, Reduce
+from einops import rearrange, repeat
+from einops.layers.torch import Rearrange
 
 
-class ResidualBlock(nn.Module):
-    def __init__(self, fn):
-        super().__init__()
+def pair(t):
+    return t if isinstance(t, tuple) else (t, t)
 
+
+class PreNorm(nn.Module):
+    def __init__(self, in_channels: int, fn: nn.Module):
+        super(PreNorm, self).__init__()
+
+        self.norm = nn.LayerNorm(in_channels)
         self.fn = fn
 
     def forward(self, x, **kwargs):
-        res = x
-        x = self.fn(x, **kwargs)
-        x += res
-
-        return x
+        return self.fn(self.norm(x), **kwargs)
 
 
-class MultiHeadAttention(nn.Module):
-    def __init__(self, dim, heads, dropout):
-        super().__init__()
+class FeedForward(nn.Module):
+    def __init__(self, in_channels: int, hid_channels: int, dropout: float = 0.):
+        super(FeedForward, self).__init__()
 
-        self.dim = dim
-        self.heads = heads
-
-        # out shape
-        # batches    -           -
-        # 1       1*width       dim
-        self.queries = nn.Linear(dim, dim)
-        self.keys = nn.Linear(dim, dim)
-        self.values = nn.Linear(dim, dim)
-
-        self.attention_drop = nn.Dropout(dropout)
-        self.projection = nn.Linear(dim, dim)
-
-    def forward(self, x: Tensor, mask: Tensor = None) -> Tensor:
-        # batches    n         (h d)      batches   heads    n     d
-        # 1       1*width       dim  ->      1      heads  width   dim/heads
-        queries = rearrange(self.queries(x), "b n (h d) -> b h n d", h=self.heads)
-        keys = rearrange(self.keys(x), "b n (h d) -> b h n d", h=self.heads)
-        values = rearrange(self.values(x), "b n (h d) -> b h n d", h=self.heads)
-
-        energy = torch.einsum('bhqd, bhkd -> bhqk', queries, keys)
-        if mask is not None:
-            fill_value = torch.finfo(torch.float32).min
-            energy.masked_fill_(~mask, fill_value)
-        scaling = self.dim ** (1 / 2)
-        attention = softmax(energy / scaling, dim=-1)
-        attention = self.attention_drop(attention)
-        out = torch.einsum('bhal, bhlv -> bhav ', attention, values)
-        out = rearrange(out, "b h n d -> b n (h d)")
-
-        out = self.projection(out)
-
-        return out
-
-
-class FeedForwardBlock(nn.Sequential):
-    def __init__(self, dim, expansion, drop_out):
-        super().__init__(
-            nn.Linear(dim, expansion * dim),
+        self.net = nn.Sequential(
+            nn.Linear(in_channels, hid_channels),
             nn.GELU(),
-            nn.Dropout(drop_out),
-            nn.Linear(expansion * dim, dim),
+            nn.Dropout(dropout),
+            nn.Linear(hid_channels, in_channels),
+            nn.Dropout(dropout)
         )
 
-
-class FCModule(nn.Sequential):
-    def __init__(self, dim, n_classes):
-        super().__init__()
-
-        self.cov = nn.Sequential(
-            nn.Conv1d(190, 1, 1, 1),
-            nn.LeakyReLU(0.2),
-            nn.Dropout(0.5)
-        )
-
-        self.cls_head = nn.Sequential(
-            Reduce('b n e -> b e', reduction='mean'),
-            nn.LayerNorm(dim),
-            nn.Linear(dim, n_classes)
-        )
-
-        self.cls_head_fc = nn.Sequential(
-            Reduce('b n e -> b e', reduction='mean'),
-            nn.LayerNorm(dim),
-            nn.Linear(dim, 32),
-            nn.ELU(),
-            nn.Dropout(0.5),
-            nn.Linear(32, n_classes)
-        )
-
-        self.fc = nn.Sequential(
-            nn.Linear(1640, 32),
-            nn.ELU(),
-            nn.Dropout(0.3),
-            nn.Linear(32, 4)
-        )
-
-    def forward(self, x):
-        x = x.contiguous().view(x.size(0), -1)
-        out = self.fc(x)
-
-        return out
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
 
 
-class EncoderBlock(nn.Sequential):
-    def __init__(self, dim, heads=5, drop=0.5, expansion=4, forward_drop=0.5):
-        super().__init__(
-            ResidualBlock(
-                nn.Sequential(
-                    nn.LayerNorm(dim),
-                    MultiHeadAttention(dim, heads, drop),
-                    nn.Dropout(drop)
-                )
-            ),
-            ResidualBlock(
-                nn.Sequential(
-                    nn.LayerNorm(dim),
-                    FeedForwardBlock(dim, expansion=expansion, drop_out=forward_drop),
-                    nn.Dropout(drop)
-                )
-            )
-        )
+class Attention(nn.Module):
+    def __init__(self, hid_channels: int, heads: int = 8, head_channels: int = 64, dropout: float = 0.):
+        super(Attention, self).__init__()
+
+        inner_channels = head_channels * heads
+        project_out = not (heads == 1 and head_channels == hid_channels)
+
+        self.heads = heads
+        self.scale = head_channels**-0.5
+
+        self.attend = nn.Softmax(dim=-1)
+        self.dropout = nn.Dropout(dropout)
+
+        self.to_qkv = nn.Linear(hid_channels, inner_channels * 3, bias=False)
+
+        self.to_out = nn.Sequential(
+            nn.Linear(inner_channels, hid_channels),
+            nn.Dropout(dropout)
+        ) if project_out else nn.Identity()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        qkv = self.to_qkv(x).chunk(3, dim=-1)
+        q, k, v = map(
+            lambda t: rearrange(t, 'b n (h d) -> b h n d', h=self.heads), qkv)
+
+        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
+
+        attn = self.attend(dots)
+        attn = self.dropout(attn)
+
+        out = torch.matmul(attn, v)
+        out = rearrange(out, 'b h n d -> b n (h d)')
+        return self.to_out(out)
 
 
-class ConvModule(nn.Module):
-    def __init__(self, dim):
-        super().__init__()
+class Transformer(nn.Module):
+    def __init__(self, hid_channels: int, depth: int, heads: int, head_channels: int, mlp_channels: int,
+                 dropout: float = 0.):
+        super(Transformer, self).__init__()
 
-        self.input = nn.Sequential(
-            # output shape:
-            # batches channels  eeg_channels    width
-            # 1       dim          62           width
-            nn.Conv2d(1, dim, (1, 25), (1, 1)),
-            # output shape:
-            # batches channels  eeg_channels    width
-            # 1       dim           1           width
-            nn.Conv2d(dim, dim, (62, 1), (1, 1)),
-            nn.BatchNorm2d(dim),
-            nn.ELU(),
-            # output shape:
-            # batches channels  eeg_channels    width
-            # 1       dim            1          width
-            nn.AvgPool2d((1, 75), (1, 15)),
-            nn.Dropout(0.5),
-        )
+        self.layers = nn.ModuleList([])
 
-        self.projection = nn.Sequential(
-            # output shape:
-            # batches channels  eeg_channels    width
-            # 1       token_dim     1           width
-            nn.Conv2d(dim, dim, (1, 1), stride=(1, 1)),
-            # output shape:
-            # batches    -           -
-            # 1       1*width       dim
-            Rearrange('b e (h) (w) -> b (h w) e'),
-        )
+        for _ in range(depth):
+            self.layers.append(
+                nn.ModuleList([
+                    PreNorm(
+                        hid_channels,
+                        Attention(
+                            hid_channels,
+                            heads=heads,
+                            head_channels=head_channels,
+                            dropout=dropout
+                        )
+                    ),
+                    PreNorm(
+                        hid_channels,
+                        FeedForward(
+                            hid_channels,
+                            mlp_channels,
+                            dropout=dropout
+                        )
+                    )
+                ]))
 
-    def forward(self, x: Tensor) -> Tensor:
-        x = self.input(x)
-        x = self.projection(x)
-
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        for attn, ff in self.layers:
+            x = attn(x) + x
+            x = ff(x) + x
         return x
 
 
-class TransformerModule(nn.Sequential):
-    def __init__(self, dim, depth):
-        super().__init__(*[EncoderBlock(dim) for _ in range(depth)])
+class ViT(nn.Module):
+    def __init__(self, chunk_size: int = 128, grid_size: Tuple[int, int] = (9, 9), t_patch_size: int = 32,
+                 s_patch_size: Tuple[int, int] = (3, 3), hid_channels: int = 32, depth: int = 3, heads: int = 4,
+                 head_channels: int = 64, mlp_channels: int = 64, num_classes: int = 2, embed_dropout: float = 0.,
+                 dropout: float = 0., pool_func: str = 'cls'):
+        super(ViT, self).__init__()
 
+        self.chunk_size = chunk_size
+        self.grid_size = grid_size
+        self.t_patch_size = t_patch_size
+        self.s_patch_size = s_patch_size
+        self.dropout = dropout
+        self.hid_channels = hid_channels
+        self.depth = depth
+        self.heads = heads
+        self.head_channels = head_channels
+        self.mlp_channels = mlp_channels
+        self.pool_func = pool_func
+        self.embed_dropout = embed_dropout
+        self.num_classes = num_classes
 
-class ViT(nn.Sequential):
-    def __init__(self, dim=40, depth=6, classes=4):
-        super().__init__(
-            ConvModule(dim),
-            TransformerModule(dim, depth),
-            FCModule(dim, classes)
+        grid_height, grid_width = pair(grid_size)
+        patch_height, patch_width = pair(s_patch_size)
+
+        assert grid_height % patch_height == 0 and grid_width % patch_width == 0, \
+            f'EEG grid size {grid_size} must be divisible by the spatial patch size {s_patch_size}.'
+        assert chunk_size % t_patch_size == 0, \
+            f'EEG chunk size {chunk_size} must be divisible by the temporal patch size {t_patch_size}.'
+
+        num_patches = (chunk_size // t_patch_size) * (grid_height // patch_height) * (grid_width // patch_width)
+        patch_channels = t_patch_size * patch_height * patch_width
+        assert pool_func in {
+            'cls', 'mean'
+        }, 'pool_func must be either cls (cls token) or mean (mean pooling).'
+
+        self.to_patch_embedding = nn.Sequential(
+            Rearrange('b (c p0) (h p1) (w p2) -> b c h w (p1 p2 p0)',
+                      p0=t_patch_size,
+                      p1=patch_height,
+                      p2=patch_width),
+            nn.Linear(patch_channels, hid_channels),
         )
+
+        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, hid_channels))
+        self.cls_token = nn.Parameter(torch.randn(1, 1, hid_channels))
+        self.dropout = nn.Dropout(embed_dropout)
+
+        self.transformer = Transformer(hid_channels, depth, heads, head_channels, mlp_channels, dropout)
+
+        self.pool_func = pool_func
+
+        self.mlp_head = nn.Sequential(nn.LayerNorm(hid_channels), nn.Linear(hid_channels, num_classes))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.to_patch_embedding(x)
+        x = rearrange(x, 'b ... d -> b (...) d')
+        b, n, _ = x.shape
+
+        cls_tokens = repeat(self.cls_token, '1 1 d -> b 1 d', b=b)
+        x = torch.cat((cls_tokens, x), dim=1)
+        x += self.pos_embedding[:, :(n + 1)]
+        x = self.dropout(x)
+
+        x = self.transformer(x)
+
+        x = x.mean(dim=1) if self.pool_func == 'mean' else x[:, 0]
+
+        return self.mlp_head(x)

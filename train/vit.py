@@ -10,7 +10,7 @@ from torchsummary import summary
 
 from data.seed_iv import Subject, session_label
 from pre.data import subject_file_map, process_file
-from model.vit import ViT
+from model.conformer import Conformer
 
 
 def dataset_of_subject(folder, subject):
@@ -31,8 +31,8 @@ def dataset_of_subject(folder, subject):
 
 
 def start(config):
-    m = ViT()
-    summary(m, input_size=(1, 62, 700))
+    # m = Conformer()
+    # summary(m, input_size=(1, 62, 700))
 
     x, y = dataset_of_subject(config.dataset['eeg_raw_data_abs_path'], Subject.THREE)
     x = np.array(x)
@@ -57,15 +57,18 @@ def start(config):
         train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
         test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
-        model = ViT()
+        model = Conformer()
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
 
         model.train()
-        for epoch in range(5):
-            print(f'Epoch: {epoch} ----------------------------')
 
+        num_epochs = 30
+        for epoch in range(num_epochs):
+            print(f'Epoch: {epoch} ----------------------------')
             running_loss = 0.0
+            correct_predictions = 0
+            total_samples = 0
 
             for i, (batch_x, batch_y) in enumerate(train_loader):
                 optimizer.zero_grad()
@@ -77,9 +80,14 @@ def start(config):
                 optimizer.step()
 
                 running_loss += loss.item()
-                if i % 10 == 9:
-                    # print(f'Epoch [{epoch + 1}], Step [{i + 1}/{len(train_loader)}], Loss: {running_loss / 10:.4f}')
-                    running_loss = 0.0
+                _, predicted = torch.max(outputs, 1)
+                correct_predictions += predicted.eq(batch_y).sum().item()
+                total_samples += batch_y.size(0)
+
+            epoch_loss = running_loss / len(train_loader)
+            epoch_accuracy = correct_predictions / total_samples
+
+            print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {epoch_loss:.4f}, Accuracy: {epoch_accuracy:.4f}")
 
         model.eval()
         correct = 0
@@ -96,5 +104,6 @@ def start(config):
         print(f'Accuracy of the model on the test set: {accuracy:.2f}%')
 
         print("-" * 40)
+        return
 
     print("k-fold ned")
