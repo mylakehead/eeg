@@ -9,8 +9,8 @@ from torch.utils.data import TensorDataset, DataLoader
 from torchsummary import summary
 
 from data.seed_iv import Subject, session_label
-from pre.data import subject_file_map, process_file
-from model.conformer import Conformer
+from pre.seed_iv import subject_file_map, process_file
+from model.conformer_raw import ConformerRaw
 
 
 def dataset_of_subject(folder, subject):
@@ -57,14 +57,14 @@ def start(config):
         train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
         test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
-        model = Conformer()
+        model = ConformerRaw()
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
 
-        model.train()
-
-        num_epochs = 30
+        num_epochs = 1000
         for epoch in range(num_epochs):
+            model.train()
+
             print(f'Epoch: {epoch} ----------------------------')
             running_loss = 0.0
             correct_predictions = 0
@@ -89,19 +89,22 @@ def start(config):
 
             print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {epoch_loss:.4f}, Accuracy: {epoch_accuracy:.4f}")
 
-        model.eval()
-        correct = 0
-        total = 0
+            model.eval()
+            correct = 0
+            total = 0
+            test_loss = 0.0
+            with torch.no_grad():
+                for batch_x, batch_y in test_loader:
+                    y_pred = model(batch_x)
+                    loss = criterion(y_pred, batch_y)
+                    test_loss += loss.item()
+                    _, predicted = torch.max(y_pred, 1)
+                    total += batch_y.size(0)
+                    correct += predicted.eq(batch_y).sum().item()
 
-        with torch.no_grad():
-            for batch_x, batch_y in test_loader:
-                y_pred = model(batch_x)
-                _, predicted = torch.max(y_pred, 1)
-                total += batch_y.size(0)
-                correct += predicted.eq(batch_y).sum().item()
-
-        accuracy = 100 * correct / total
-        print(f'Accuracy of the model on the test set: {accuracy:.2f}%')
+            test_loss = test_loss / len(test_loader)
+            test_accuracy = correct / total
+            print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
 
         print("-" * 40)
         return

@@ -13,8 +13,13 @@ class Config:
             data['dataset']['root_path'],
             data['dataset']['eeg_raw_data_path']
         )
+        self.dataset['eeg_feature_smooth_abs_path'] = os.path.join(
+            data['dataset']['root_path'],
+            data['dataset']['eeg_feature_smooth_path']
+        )
 
         self.eeg_it_net = data['EEG-ITNet']
+        self.conformer = data['Conformer']
         self.vit = data['ViT']
 
 
@@ -47,8 +52,11 @@ def main(argv):
     config = Config(data)
 
     active = data['active']
-    if active == 'ViT':
-        from train.vit import start
+    if active == 'Conformer':
+        from train.conformer_raw import start
+        start(config)
+    elif active == 'ViT':
+        from train.conformer_feature import start
         start(config)
     elif active == 'EEG-ITNet':
         from train.eeg_itnet import start

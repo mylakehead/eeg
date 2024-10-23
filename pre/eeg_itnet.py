@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 
 from data.seed_iv import Session, session_label
-from .data import filter_egg, subject_file_map
+from .seed_iv import filter_egg, subject_file_map
 
 
 def reshape_chunk(chunk_list):

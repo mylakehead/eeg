@@ -69,3 +69,10 @@ session_label = {
         Emotion.FEAR, Emotion.NEUTRAL, Emotion.SAD, Emotion.NEUTRAL
     ]
 }
+
+
+class FeatureMethod(Enum):
+    DE_LDS = 0
+    DE_MOVING_AVE = 1
+    PSD_LDS = 2
+    PSD_MOVING_AVE = 3

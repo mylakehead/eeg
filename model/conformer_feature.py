@@ -112,23 +112,24 @@ class EncoderBlock(nn.Sequential):
 
 
 class ConvModule(nn.Module):
-    def __init__(self, dim):
+    def __init__(self, channels, block_size, dim):
         super().__init__()
 
         self.input = nn.Sequential(
             # input shape:  batch_size, 1,   eeg_channels, sequence
             # output shape: batch_size, dim, eeg_channels, sequence - 24
-            nn.Conv2d(1, dim, (1, 25), (1, 1)),
+            nn.Conv2d(channels, dim, (1, 1)),
             # input shape:  batch_size, dim, eeg_channels, sequence - 24
             # output shape: batch_size, dim, 1,            sequence - 24
-            nn.Conv2d(dim, dim, (62, 1), (1, 1)),
+            nn.Conv2d(dim, dim, (block_size, 1)),
+            # nn.Dropout(0.5),
             # features(channels) normalization
             nn.BatchNorm2d(dim),
             nn.ELU(),
             # input shape:  batch_size, dim, 1, sequence - 24
             # output shape: batch_size, dim, 1, (sequence - 99)/15 + 1
-            nn.AvgPool2d((1, 75), (1, 15)),
-            nn.Dropout(0.5),
+            # nn.AvgPool2d((1, 1)),
+            # nn.Dropout(0.5),
         )
 
         self.projection = nn.Sequential(
@@ -152,17 +153,17 @@ class TransformerModule(nn.Sequential):
         super().__init__(*[EncoderBlock(dim, heads) for _ in range(depth)])
 
 
-class Conformer(nn.Sequential):
-    def __init__(self, dim=40, heads=10, depth=6, classes=4):
+class ConformerFeature(nn.Sequential):
+    def __init__(self, channels, block_size, dim=40, heads=10, depth=6, classes=4):
         super().__init__()
 
-        self.conv = ConvModule(dim)
+        self.conv = ConvModule(channels, block_size, dim)
         self.transformer = TransformerModule(dim, heads, depth)
         self.fc = FCModule(self.feature_dim(), classes)
 
     def feature_dim(self):
         with torch.no_grad():
-            mock_eeg = torch.zeros(1, 1, 62, 700)
+            mock_eeg = torch.zeros(1, 5, 10, 62)
             mock_eeg = self.conv(mock_eeg)
             mock_eeg = self.transformer(mock_eeg)
             mock_eeg = mock_eeg.flatten(start_dim=1)
