@@ -13,7 +13,18 @@ from pre.seed_iv import subject_file_map, process_feature_file
 from model.conformer_feature import ConformerFeature
 
 
-def dataset_of_subject(folder, subject, feature_method: FeatureMethod, block_size):
+def dataset_of_subject(folder: str, subject: Subject, feature_method: FeatureMethod, block_size: int) -> tuple[list[np.ndarray], list[int]]:
+    """Get the dataset of a subject.
+    
+    Args:
+        folder (str): The folder containing the feature data.
+        subject (Subject): The subject to get the dataset for.
+        feature_method (FeatureMethod): The feature method to use.
+        block_size (int): The block size to use.
+        
+    Returns:
+        tuple[list[np.ndarray], list[int]]: The dataset and labels.
+    """
     subject_file_mapping = subject_file_map(folder)
     files = subject_file_mapping[subject]
 

@@ -5,7 +5,8 @@ import getopt
 
 
 class Config:
-    def __init__(self, data):
+    """Configuration class for the EEG-ITNet, Conformer, and ViT models."""
+    def __init__(self, data: dict):
         self.active = data['active']
 
         self.dataset = data['dataset']
@@ -23,7 +24,15 @@ class Config:
         self.vit = data['ViT']
 
 
-def parse_opt(argv):
+def parse_opt(argv: list[str]) -> str:
+    """Parse command line arguments.
+    
+    Args:
+        argv (list[str]): List of command line arguments
+        
+    Returns:
+        str: Path to config file specified by -c/--config argument
+    """
     try:
         opts, args = getopt.getopt(argv, "hc:", ["config="])
         for opt, arg in opts:
@@ -40,7 +49,16 @@ def parse_opt(argv):
         sys.exit(2)
 
 
-def parse_config(config_file):
+
+def parse_config(config_file: str) -> dict:
+    """Parse the JSON configuration file.
+    
+    Args:
+        config_file (str): Path to the JSON configuration file
+        
+    Returns:
+        dict: Parsed configuration data
+    """
     with open(config_file, 'r') as f:
         data = json.load(f)
         return data

@@ -71,7 +71,18 @@ def pad_and_split(array, block_size):
     return blocks
 
 
-def process_feature_file(feature_method, file_name, labels, block_size):
+def process_feature_file(feature_method: FeatureMethod, file_name: str, labels: list[int], block_size: int) -> tuple[list[np.ndarray], list[int]]:
+    """Process a feature file.
+    
+    Args:
+        feature_method (FeatureMethod): The feature method to use.
+        file_name (str): The file name to process.
+        labels (list[int]): The labels for the file.
+        block_size (int): The block size to use.
+        
+    Returns:
+        tuple[list[np.ndarray], list[int]]: The processed data and labels.
+    """
     data = scipy.io.loadmat(file_name)
     data.pop('__header__', None)
     data.pop('__version__', None)
@@ -115,7 +126,15 @@ def process_feature_file(feature_method, file_name, labels, block_size):
     return chunk_list, label_list
 
 
-def subject_file_map(folder):
+def subject_file_map(folder: str) -> dict[Subject, dict[Session, str]]:
+    """Get the file map for the subject.
+    
+    Args:
+        folder (str): The folder containing the feature data.
+        
+    Returns:
+        dict[Subject, dict[Session, str]]: The file map for the subject.
+    """
     file_map = dict()
     for s in Subject:
         file_map[s] = dict()

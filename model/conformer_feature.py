@@ -22,7 +22,7 @@ class ResidualBlock(nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
-
+    """Multi-head attention module."""
     def __init__(self, dim, heads, dropout):
         super().__init__()
 
@@ -40,6 +40,12 @@ class MultiHeadAttention(nn.Module):
         self.projection = nn.Linear(dim, dim)
 
     def forward(self, x: Tensor, mask: Tensor = None) -> Tensor:
+        """Forward pass for the multi-head attention module.
+        
+        Args:
+            x (Tensor): The input tensor.
+            mask (Tensor, optional): The mask tensor. Defaults to None.
+        """
         # output shape: 1 10 41 4
         queries = rearrange(self.queries(x), "b n (h d) -> b h n d", h=self.heads)
         keys = rearrange(self.keys(x), "b n (h d) -> b h n d", h=self.heads)
@@ -62,6 +68,7 @@ class MultiHeadAttention(nn.Module):
 
 
 class FeedForwardBlock(nn.Sequential):
+    """Feed-forward block module."""
     def __init__(self, dim, expansion, drop_out):
         super().__init__(
             nn.Linear(dim, expansion * dim),
@@ -72,6 +79,7 @@ class FeedForwardBlock(nn.Sequential):
 
 
 class FCModule(nn.Sequential):
+    """Fully connected module."""
     def __init__(self, in_channels: int, num_classes: int, hid_channels: int = 32, dropout: float = 0.5):
         super().__init__()
 
@@ -149,11 +157,13 @@ class ConvModule(nn.Module):
 
 
 class TransformerModule(nn.Sequential):
+    """Transformer module."""
     def __init__(self, dim, heads, depth):
         super().__init__(*[EncoderBlock(dim, heads) for _ in range(depth)])
 
 
 class ConformerFeature(nn.Sequential):
+    """Conformer feature model."""
     def __init__(self, channels, block_size, dim=40, heads=10, depth=6, classes=4):
         super().__init__()
 
