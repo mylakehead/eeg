@@ -5,7 +5,18 @@ import numpy as np
 import tensorflow as tf
 
 from data.seed_iv import Session, session_label
-from .seed_iv import filter_egg, subject_file_map
+from .seed_iv import subject_file_map
+
+
+def filter_egg(raw, fs):
+    # common average reference (CAR)
+    average_reference = np.mean(raw, axis=0)
+    car_eeg = raw - average_reference
+
+    o = scipy.signal.butter(4, [0.15, 40], 'bandpass', fs=fs)
+    filtered_eeg = scipy.signal.filtfilt(o[0], o[1], car_eeg, axis=1)
+
+    return filtered_eeg
 
 
 def reshape_chunk(chunk_list):
