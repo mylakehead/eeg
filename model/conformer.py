@@ -364,14 +364,14 @@ class ConvModule(nn.Module):
             # input shape:  batch_size, dim, eeg_channels, sequence - 24
             # output shape: batch_size, dim, 1,            sequence - 24
             nn.Conv2d(dim, dim, (block_size, 1)),
-            # nn.Dropout(0.5),
+            nn.Dropout(0.5),
             # features(channels) normalization
             nn.BatchNorm2d(dim),
             nn.ELU(),
             # input shape:  batch_size, dim, 1, sequence - 24
             # output shape: batch_size, dim, 1, (sequence - 99)/15 + 1
-            # nn.AvgPool2d((1, 1)),
-            # nn.Dropout(0.5),
+            nn.AvgPool2d((1, 1)),
+            nn.Dropout(0.5),
         )
 
         # Projection layers for further processing
@@ -450,6 +450,7 @@ class Conformer(nn.Sequential):
                the specified number of output classes.
         """
         super().__init__()
+        self.block_size = block_size
 
         self.conv = ConvModule(channels, block_size, dim)
         self.transformer = TransformerModule(dim, heads, depth)
@@ -467,7 +468,7 @@ class Conformer(nn.Sequential):
         :rtype: int
         """
         with torch.no_grad():
-            mock_eeg = torch.zeros(1, 5, 10, 62)
+            mock_eeg = torch.zeros(1, 5, self.block_size, 62)
             mock_eeg = self.conv(mock_eeg)
             mock_eeg = self.transformer(mock_eeg)
             mock_eeg = mock_eeg.flatten(start_dim=1)

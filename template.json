@@ -6,7 +6,8 @@
     "eeg_feature_smooth_path": "eeg_feature_smooth"
   },
   "Conformer": {
-
+    "experiment": "A",
+    "summary": false
   },
   "EEG-ITNet": {
     "hyperparameters": {

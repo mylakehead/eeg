@@ -99,6 +99,56 @@ def pad_and_split(array, block_size):
     return blocks
 
 
+def process_feature_file_for_experiment_a(feature_method, file_name, labels, block_size):
+    data = scipy.io.loadmat(file_name)
+    data.pop('__header__', None)
+    data.pop('__version__', None)
+    data.pop('__globals__', None)
+
+    train_chunk_list = list()
+    train_label_list = list()
+
+    test_chunk_list = list()
+    test_label_list = list()
+
+    if feature_method == FeatureMethod.DE_LDS:
+        pattern = r'de_LDS(\d+)'
+    elif feature_method == FeatureMethod.DE_MOVING_AVE:
+        pattern = r'de_movingAve(\d+)'
+    elif feature_method == FeatureMethod.PSD_LDS:
+        pattern = r'psd_LDS(\d+)'
+    elif feature_method == FeatureMethod.PSD_MOVING_AVE:
+        pattern = r'psd_movingAve(\d+)'
+    else:
+        raise Exception("feature method error")
+
+    must = list(range(1, 25))
+    for index, trial in data.items():
+        match = re.match(pattern, index)
+        if not match:
+            continue
+
+        trail_index = int(match.group(1))
+        label_index = trail_index - 1
+
+        trail_transpose = np.transpose(trial, (2, 1, 0))
+        chunks = pad_and_split(trail_transpose, block_size)
+
+        if 1 <= trail_index <= 16:
+            train_chunk_list.extend(chunks)
+            train_label_list.extend([labels[label_index].value] * len(chunks))
+        else:
+            test_chunk_list.extend(chunks)
+            test_label_list.extend([labels[label_index].value] * len(chunks))
+
+        must.remove(trail_index)
+
+    if len(must) != 0:
+        raise Exception(f"file missing{must}")
+
+    return train_chunk_list, train_label_list, test_chunk_list, test_label_list
+
+
 def process_feature_file(feature_method, file_name, labels, block_size) -> tuple[list[np.ndarray], list[int]]:
     """
     Processes a feature-based EEG data file according to the specified feature extraction method,
