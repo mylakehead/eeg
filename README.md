@@ -10,3 +10,6 @@ pip install -r requirements.txt
 ```
 
 # prepare dataset
+
+
+https://pytorch.org/get-started/locally/

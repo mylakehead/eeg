@@ -171,7 +171,7 @@ def start(config):
             [
                 Subject.ONE, Subject.TWO, Subject.THREE, Subject.FOUR, Subject.FIVE,
                 Subject.SIX, Subject.SEVEN, Subject.EIGHT, Subject.NINE, Subject.TEN,
-                Subject.ELEVEN, Subject.TWELVE, Subject.THREE, Subject.FOURTEEN, Subject.FIFTEEN
+                Subject.ELEVEN, Subject.TWELVE, Subject.THIRTEEN, Subject.FOURTEEN, Subject.FIFTEEN
             ],
             method, block_size
         )
@@ -183,7 +183,7 @@ def start(config):
         x_train, x_test = x[train_index], x[test_index]
         y_train, y_test = y[train_index], y[test_index]
 
-        model = Conformer(channels=5, block_size=block_size, dim=10, heads=2, depth=3, classes=4)
+        model = Conformer(channels=5, block_size=block_size, dim=30, heads=5, depth=4, classes=4)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(device)
@@ -205,7 +205,7 @@ def start(config):
 
     criterion = nn.CrossEntropyLoss()
 
-    best_accuracy = 80.00
+    best_accuracy = 0.8
     num_epochs = 1000
     for epoch in range(num_epochs):
         model.train()
