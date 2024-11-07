@@ -163,7 +163,7 @@ def start(config):
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(device)
-    else:
+    elif config.conformer['experiment'] == 'D':
         block_size = 10
         method = FeatureMethod.DE_LDS
         x, y = dataset_of_subject(
@@ -187,6 +187,32 @@ def start(config):
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(device)
+    elif config.conformer['experiment'] == 'PRE':
+        block_size = 10
+        method = FeatureMethod.DE_LDS
+        x, y = dataset_of_subject(
+            config.dataset['eeg_feature_smooth_abs_path'],
+            [
+                Subject.ONE, Subject.TWO, Subject.THREE, Subject.FOUR, Subject.FIVE,
+                Subject.SIX, Subject.SEVEN, Subject.EIGHT, Subject.NINE, Subject.TEN,
+                Subject.ELEVEN, Subject.TWELVE, Subject.THIRTEEN, Subject.FOURTEEN, Subject.FIFTEEN
+            ],
+            method, block_size
+        )
+        x = np.array(x)
+        y = np.array(y)
+
+        x_train = x
+        y_train = y
+        x_test = np.array([])
+        y_test = np.array([])
+
+        model = Conformer(channels=5, block_size=block_size, dim=30, heads=5, depth=4, classes=4)
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model.to(device)
+    else:
+        raise NotImplementedError
 
     if config.conformer['summary']:
         m = Conformer(5, block_size=block_size)
@@ -205,7 +231,7 @@ def start(config):
 
     criterion = nn.CrossEntropyLoss()
 
-    best_accuracy = 0.8
+    best_accuracy = 0.10
     num_epochs = 1000
     for epoch in range(num_epochs):
         model.train()
@@ -251,21 +277,18 @@ def start(config):
                 total += batch_y.size(0)
                 correct += predicted.eq(batch_y).sum().item()
 
-        test_loss = test_loss / len(test_loader)
-        test_accuracy = correct / total
-        print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
+        if config.conformer['experiment'] != "PRE":
+            test_loss = test_loss / len(test_loader)
+            test_accuracy = correct / total
+            print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
+        else:
+            if epoch_accuracy > best_accuracy:
+                torch.save(model.state_dict(), f'./saved/pre_{epoch_accuracy:.4f}.pth')
+                print(f"Epoch {epoch + 1}: New pre-train model saved with accuracy {epoch_accuracy:.4f}")
 
         # scheduler.step(test_loss)
         # current_lr = scheduler.get_last_lr()[0]
         # print(f"Epoch {epoch + 1}, Learning Rate: {current_lr}")
-
-        if test_accuracy > best_accuracy:
-            best_accuracy = test_accuracy
-            if config.conformer['experiment'] == "PRE":
-                torch.save(model.state_dict(), f'./saved/pre_{test_accuracy:.4f}.pth')
-            else:
-                pass
-            print(f"Epoch {epoch + 1}: New best model saved with accuracy {test_accuracy:.4f}")
 
     print("-" * 40)
     return
