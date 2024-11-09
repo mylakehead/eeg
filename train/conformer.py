@@ -118,11 +118,11 @@ def start(config):
 
     experiment = config.conformer["experiment"]
         
-    if experiment == "A":
+    if experiment == "PRE-A":
         block_size = 10
         dim = 40
-        heads = 10
-        depth = 6
+        heads = 5
+        depth = 4
         method = FeatureMethod.DE_LDS
         best_accuracy = 0.8
 
@@ -138,6 +138,24 @@ def start(config):
             if "conv" in name or "transformer" in name:
                 param.requires_grad = False
 
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model.to(device)
+    elif experiment == "A":
+        block_size = 10
+        dim = 40
+        heads = 5
+        depth = 4
+        method = FeatureMethod.DE_LDS
+        best_accuracy = 0.8
+
+        x_train, y_train, x_test, y_test = dataset_of_experiment_a(
+            config.dataset['eeg_feature_smooth_abs_path'],
+            [Subject.THREE],
+            method,
+            block_size,
+        )
+        model = Conformer(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(device)
@@ -220,10 +238,10 @@ def start(config):
         # model = Conformer(channels=5, block_size=block_size, dim=40, heads=5, depth=4, classes=4) 0.8+
         # model = Conformer(channels=5, block_size=block_size, dim=80, heads=20, depth=4, classes=4) 0.8+
         dim = 40
-        heads = 10
-        depth = 6
+        heads = 5
+        depth = 4
         method = FeatureMethod.DE_LDS
-        best_accuracy = 0.1
+        best_accuracy = 0.8
 
         x, y = dataset_of_subject(
             config.dataset['eeg_feature_smooth_abs_path'],
