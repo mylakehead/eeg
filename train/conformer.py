@@ -188,7 +188,7 @@ def start(config):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(device)
     elif config.conformer['experiment'] == 'PRE':
-        block_size = 10
+        block_size = 15
         method = FeatureMethod.DE_LDS
         x, y = dataset_of_subject(
             config.dataset['eeg_feature_smooth_abs_path'],
@@ -207,7 +207,10 @@ def start(config):
         x_test = np.array([])
         y_test = np.array([])
 
-        model = Conformer(channels=5, block_size=block_size, dim=30, heads=5, depth=4, classes=4)
+        # model = Conformer(channels=5, block_size=block_size, dim=40, heads=5, depth=4, classes=4) 0.8+
+        # model = Conformer(channels=5, block_size=block_size, dim=80, heads=20, depth=4, classes=4) 0.8+
+        model = Conformer(channels=5, block_size=block_size, dim=40, heads=10, depth=6, classes=4)
+
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(device)
@@ -231,7 +234,7 @@ def start(config):
 
     criterion = nn.CrossEntropyLoss()
 
-    best_accuracy = 0.10
+    best_accuracy = 0.99
     num_epochs = 1000
     for epoch in range(num_epochs):
         model.train()
