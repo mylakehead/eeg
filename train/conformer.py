@@ -115,37 +115,60 @@ def start(config):
         print("GPU is available")
     else:
         print("GPU is not available")
+
+    experiment = config.conformer["experiment"]
         
-    if config.conformer['experiment'] == "A":
-        block_size = 5
+    if experiment == "A":
+        block_size = 10
+        dim = 40
+        heads = 10
+        depth = 6
         method = FeatureMethod.DE_LDS
+        best_accuracy = 0.8
+
         x_train, y_train, x_test, y_test = dataset_of_experiment_a(
             config.dataset['eeg_feature_smooth_abs_path'],
             [Subject.THREE],
             method,
             block_size,
         )
-        model = Conformer(channels=5, block_size=block_size, dim=1, heads=1, depth=1, classes=4)
+        model = Conformer(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
+        model.load_state_dict(torch.load(config.conformer["A"]["PRE"]))
+        for name, param in model.named_parameters():
+            if "conv" in name or "transformer" in name:
+                param.requires_grad = False
+
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(device)
-    elif config.conformer['experiment'] == "B":
+    elif experiment == "B":
         block_size = 10
+        dim = 40
+        heads = 10
+        depth = 6
         method = FeatureMethod.DE_LDS
+        best_accuracy = 0.1
+
         x_train, y_train, x_test, y_test = dataset_of_experiment_a(
             config.dataset['eeg_feature_smooth_abs_path'],
             [Subject.THREE],
             method,
             block_size,
         )
-        model = Conformer(channels=5, block_size=block_size, dim=40, heads=10, depth=6, classes=4)
+        model = Conformer(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(device)
+
         # scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
-    elif config.conformer['experiment'] == "C":
+    elif experiment == "C":
         block_size = 10
+        dim = 40
+        heads = 10
+        depth = 6
         method = FeatureMethod.DE_LDS
+        best_accuracy = 0.1
+
         x, y = dataset_of_subject(
             config.dataset['eeg_feature_smooth_abs_path'],
             [Subject.THREE],
@@ -159,13 +182,18 @@ def start(config):
         x_train, x_test = x[train_index], x[test_index]
         y_train, y_test = y[train_index], y[test_index]
 
-        model = Conformer(channels=5, block_size=block_size, dim=40, heads=10, depth=6, classes=4)
+        model = Conformer(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(device)
-    elif config.conformer['experiment'] == 'D':
+    elif experiment == 'D':
         block_size = 10
+        dim = 30
+        heads = 5
+        depth = 4
         method = FeatureMethod.DE_LDS
+        best_accuracy = 0.1
+
         x, y = dataset_of_subject(
             config.dataset['eeg_feature_smooth_abs_path'],
             [
@@ -183,13 +211,20 @@ def start(config):
         x_train, x_test = x[train_index], x[test_index]
         y_train, y_test = y[train_index], y[test_index]
 
-        model = Conformer(channels=5, block_size=block_size, dim=30, heads=5, depth=4, classes=4)
+        model = Conformer(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(device)
-    elif config.conformer['experiment'] == 'PRE':
-        block_size = 15
+    elif experiment == 'PRE':
+        block_size = 10
+        # model = Conformer(channels=5, block_size=block_size, dim=40, heads=5, depth=4, classes=4) 0.8+
+        # model = Conformer(channels=5, block_size=block_size, dim=80, heads=20, depth=4, classes=4) 0.8+
+        dim = 40
+        heads = 10
+        depth = 6
         method = FeatureMethod.DE_LDS
+        best_accuracy = 0.1
+
         x, y = dataset_of_subject(
             config.dataset['eeg_feature_smooth_abs_path'],
             [
@@ -207,9 +242,7 @@ def start(config):
         x_test = np.array([])
         y_test = np.array([])
 
-        # model = Conformer(channels=5, block_size=block_size, dim=40, heads=5, depth=4, classes=4) 0.8+
-        # model = Conformer(channels=5, block_size=block_size, dim=80, heads=20, depth=4, classes=4) 0.8+
-        model = Conformer(channels=5, block_size=block_size, dim=40, heads=10, depth=6, classes=4)
+        model = Conformer(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
 
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -234,7 +267,6 @@ def start(config):
 
     criterion = nn.CrossEntropyLoss()
 
-    best_accuracy = 0.99
     num_epochs = 1000
     for epoch in range(num_epochs):
         model.train()
@@ -280,14 +312,23 @@ def start(config):
                 total += batch_y.size(0)
                 correct += predicted.eq(batch_y).sum().item()
 
-        if config.conformer['experiment'] != "PRE":
+        if experiment != "PRE":
             test_loss = test_loss / len(test_loader)
             test_accuracy = correct / total
             print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
+            if test_accuracy > best_accuracy:
+                torch.save(
+                    model.state_dict(),
+                    f'./saved/{experiment}_{method}_{test_accuracy:.4f}_{block_size}_{dim}_{heads}_{depth}.pth'
+                )
+                print(f"Epoch {epoch + 1}: New {experiment} model saved with accuracy {test_accuracy:.4f}")
         else:
             if epoch_accuracy > best_accuracy:
-                torch.save(model.state_dict(), f'./saved/pre_{epoch_accuracy:.4f}.pth')
-                print(f"Epoch {epoch + 1}: New pre-train model saved with accuracy {epoch_accuracy:.4f}")
+                torch.save(
+                    model.state_dict(),
+                    f'./saved/{experiment}_{method}_{epoch_accuracy:.4f}_{block_size}_{dim}_{heads}_{depth}.pth'
+                )
+                print(f"Epoch {epoch + 1}: New {experiment} model saved with accuracy {epoch_accuracy:.4f}")
 
         # scheduler.step(test_loss)
         # current_lr = scheduler.get_last_lr()[0]
