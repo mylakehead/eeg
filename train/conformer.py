@@ -52,6 +52,7 @@ import numpy as np
 from sklearn.model_selection import KFold
 
 import torch
+from tensorflow.python.layers.core import dropout
 from torch import nn
 from torch.utils.data import TensorDataset, DataLoader
 # from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -126,9 +127,10 @@ def start(config):
         method = FeatureMethod.DE_LDS
         best_accuracy = 0.8
 
+        subjects = [Subject.THREE]
         x_train, y_train, x_test, y_test = dataset_of_experiment_a(
             config.dataset['eeg_feature_smooth_abs_path'],
-            [Subject.THREE],
+            subjects,
             method,
             block_size,
         )
@@ -139,26 +141,25 @@ def start(config):
                 param.requires_grad = False
 
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model.to(device)
     elif experiment == "A":
         block_size = 10
-        dim = 40
+        dim = 5
         heads = 5
-        depth = 4
-        method = FeatureMethod.DE_LDS
-        best_accuracy = 0.8
+        depth = 5
+        method = FeatureMethod.DE_MOVING_AVE
+        best_accuracy = 0.6
 
+        subjects = [
+            Subject.ONE
+        ]
         x_train, y_train, x_test, y_test = dataset_of_experiment_a(
             config.dataset['eeg_feature_smooth_abs_path'],
-            [Subject.THREE],
+            subjects,
             method,
             block_size,
         )
-        model = Conformer(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
+        model = Conformer(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4, dropout_1=0.5)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model.to(device)
     elif experiment == "B":
         block_size = 10
         dim = 40
@@ -167,29 +168,31 @@ def start(config):
         method = FeatureMethod.DE_LDS
         best_accuracy = 0.1
 
+        subjects = [Subject.THREE]
         x_train, y_train, x_test, y_test = dataset_of_experiment_a(
             config.dataset['eeg_feature_smooth_abs_path'],
-            [Subject.THREE],
+            subjects,
             method,
             block_size,
         )
         model = Conformer(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model.to(device)
-
         # scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
     elif experiment == "C":
         block_size = 10
         dim = 40
-        heads = 10
+        heads = 5
         depth = 6
         method = FeatureMethod.DE_LDS
-        best_accuracy = 0.1
+        best_accuracy = 0.95
+
+        subjects = [
+            Subject.TWO
+        ]
 
         x, y = dataset_of_subject(
             config.dataset['eeg_feature_smooth_abs_path'],
-            [Subject.THREE],
+            subjects,
             method, block_size
         )
         x = np.array(x)
@@ -202,8 +205,6 @@ def start(config):
 
         model = Conformer(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model.to(device)
     elif experiment == 'D':
         block_size = 10
         dim = 30
@@ -212,13 +213,14 @@ def start(config):
         method = FeatureMethod.DE_LDS
         best_accuracy = 0.1
 
+        subjects = [
+            Subject.ONE, Subject.TWO, Subject.THREE, Subject.FOUR, Subject.FIVE, Subject.SIX, Subject.SEVEN,
+            Subject.EIGHT, Subject.NINE, Subject.TEN, Subject.ELEVEN, Subject.TWELVE, Subject.THIRTEEN,
+            Subject.FOURTEEN, Subject.FIFTEEN
+        ]
         x, y = dataset_of_subject(
             config.dataset['eeg_feature_smooth_abs_path'],
-            [
-                Subject.ONE, Subject.TWO, Subject.THREE, Subject.FOUR, Subject.FIVE,
-                Subject.SIX, Subject.SEVEN, Subject.EIGHT, Subject.NINE, Subject.TEN,
-                Subject.ELEVEN, Subject.TWELVE, Subject.THIRTEEN, Subject.FOURTEEN, Subject.FIFTEEN
-            ],
+            subjects,
             method, block_size
         )
         x = np.array(x)
@@ -231,25 +233,24 @@ def start(config):
 
         model = Conformer(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model.to(device)
     elif experiment == 'PRE':
         block_size = 10
         # model = Conformer(channels=5, block_size=block_size, dim=40, heads=5, depth=4, classes=4) 0.8+
         # model = Conformer(channels=5, block_size=block_size, dim=80, heads=20, depth=4, classes=4) 0.8+
         dim = 40
-        heads = 5
-        depth = 4
+        heads = 10
+        depth = 6
         method = FeatureMethod.DE_LDS
-        best_accuracy = 0.8
+        best_accuracy = 0.85
 
+        subjects = [
+            Subject.ONE, Subject.TWO, Subject.THREE, Subject.FOUR, Subject.FIVE, Subject.SIX, Subject.SEVEN, 
+            Subject.EIGHT, Subject.NINE, Subject.TEN, Subject.ELEVEN, Subject.TWELVE, Subject.THIRTEEN, 
+            Subject.FOURTEEN, Subject.FIFTEEN
+        ]
         x, y = dataset_of_subject(
             config.dataset['eeg_feature_smooth_abs_path'],
-            [
-                Subject.ONE, Subject.TWO, Subject.THREE, Subject.FOUR, Subject.FIVE,
-                Subject.SIX, Subject.SEVEN, Subject.EIGHT, Subject.NINE, Subject.TEN,
-                Subject.ELEVEN, Subject.TWELVE, Subject.THIRTEEN, Subject.FOURTEEN, Subject.FIFTEEN
-            ],
+            subjects,
             method, block_size
         )
         x = np.array(x)
@@ -263,10 +264,11 @@ def start(config):
         model = Conformer(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
 
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model.to(device)
     else:
         raise NotImplementedError
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
 
     if config.conformer['summary']:
         m = Conformer(5, block_size=block_size)
@@ -335,16 +337,24 @@ def start(config):
             test_accuracy = correct / total
             print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
             if test_accuracy > best_accuracy:
-                torch.save(
-                    model.state_dict(),
-                    f'./saved/{experiment}_{method}_{test_accuracy:.4f}_{block_size}_{dim}_{heads}_{depth}.pth'
-                )
+                best_accuracy = test_accuracy
+                if len(subjects) == 1:
+                    torch.save(
+                        model.state_dict(),
+                        f'./saved/{experiment}_method_{method.value}_train_accuracy_{epoch_accuracy:.4f}_test_accuracy_{test_accuracy:.4f}_{subjects[0]}_{block_size}_{dim}_{heads}_{depth}.pth'
+                    )
+                else:
+                    torch.save(
+                        model.state_dict(),
+                        f'./saved/{experiment}_method_{method.value}_test_accuracy_{test_accuracy:.4f}_{block_size}_{dim}_{heads}_{depth}.pth'
+                    )
                 print(f"Epoch {epoch + 1}: New {experiment} model saved with accuracy {test_accuracy:.4f}")
         else:
             if epoch_accuracy > best_accuracy:
+                best_accuracy = epoch_accuracy
                 torch.save(
                     model.state_dict(),
-                    f'./saved/{experiment}_{method}_{epoch_accuracy:.4f}_{block_size}_{dim}_{heads}_{depth}.pth'
+                    f'./saved/{experiment}_{method.value}_{epoch_accuracy:.4f}_{block_size}_{dim}_{heads}_{depth}.pth'
                 )
                 print(f"Epoch {epoch + 1}: New {experiment} model saved with accuracy {epoch_accuracy:.4f}")
 

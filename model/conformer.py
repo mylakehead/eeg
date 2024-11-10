@@ -334,7 +334,7 @@ class ConvModule(nn.Module):
         projection (nn.Sequential): A sequence of layers that projects the output features to a desired
                                     shape for further processing.
     """
-    def __init__(self, channels, block_size, dim):
+    def __init__(self, channels, block_size, dim, dropout):
         """
         Initializes the ConvModule.
 
@@ -360,25 +360,25 @@ class ConvModule(nn.Module):
         self.input = nn.Sequential(
             # input shape:  batch_size, 1,   eeg_channels, sequence
             # output shape: batch_size, dim, eeg_channels, sequence - 24
-            nn.Conv2d(channels, dim, (1, 1)),
+            #nn.Conv2d(channels, dim, (1, 1)),
             # input shape:  batch_size, dim, eeg_channels, sequence - 24
             # output shape: batch_size, dim, 1,            sequence - 24
-            nn.Conv2d(dim, dim, (block_size, 1)),
-            nn.Dropout(0.5),
+            #nn.Conv2d(dim, dim, (block_size, 1)),
+            #nn.Dropout(dropout),
             # features(channels) normalization
             nn.BatchNorm2d(dim),
             nn.ELU(),
             # input shape:  batch_size, dim, 1, sequence - 24
             # output shape: batch_size, dim, 1, (sequence - 99)/15 + 1
-            nn.AvgPool2d((1, 1)),
-            nn.Dropout(0.5),
+            #nn.AvgPool2d((1, 1)),
+            nn.Dropout(dropout),
         )
 
         # Projection layers for further processing
         self.projection = nn.Sequential(
             # input shape:  batch_size, dim, 1, (sequence - 99)/15 + 1
             # output shape: batch_size, dim, 1, (sequence - 99)/15 + 1
-            nn.Conv2d(dim, dim, (1, 1), stride=(1, 1)),
+            # nn.Conv2d(dim, dim, (1, 1), stride=(1, 1)),
             # input shape:  batch_size, dim, 1, (sequence - 99)/15 + 1
             # output shape: batch_size, 1 * (sequence - 99)/15 + 1, dim
             Rearrange('b e (h) (w) -> b (h w) e'),
@@ -425,7 +425,7 @@ class TransformerModule(nn.Sequential):
 
 class Conformer(nn.Sequential):
     """Conformer model combining convolutional, transformer, and fully connected layers."""
-    def __init__(self, channels, block_size, dim=40, heads=10, depth=6, classes=4):
+    def __init__(self, channels, block_size, dim=40, heads=10, depth=6, classes=4, dropout_1=0.5):
         """
         Initializes the ConformerFeature model.
 
@@ -452,7 +452,7 @@ class Conformer(nn.Sequential):
         super().__init__()
         self.block_size = block_size
 
-        self.conv = ConvModule(channels, block_size, dim)
+        self.conv = ConvModule(channels, block_size, dim, dropout_1)
         self.transformer = TransformerModule(dim, heads, depth)
         self.fc = FCModule(self.feature_dim(), classes)
 
