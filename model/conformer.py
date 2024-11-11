@@ -129,7 +129,7 @@ class ConvModule(nn.Module):
             nn.Conv2d(inner_channels, inner_channels, (62, 1), (1, 1)),
             nn.BatchNorm2d(inner_channels),
             nn.ELU(),
-            nn.AvgPool2d((1, 75), (1, 15)),
+            nn.AvgPool2d((1, 75), (1, 5)),
             nn.Dropout(0.5),
         )
 
@@ -156,9 +156,12 @@ class ClassificationHead(nn.Sequential):
         super().__init__()
 
         self.fc = nn.Sequential(
-            nn.Linear(280, 32),
+            nn.Linear(7240, 256),
             nn.ELU(),
-            nn.Dropout(0.5),
+            nn.Dropout(0.3),
+            nn.Linear(256, 32),
+            nn.ELU(),
+            nn.Dropout(0.3),
             nn.Linear(32, n_classes)
         )
 

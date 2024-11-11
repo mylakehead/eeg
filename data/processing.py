@@ -19,7 +19,7 @@ ba = cheby2(6, 60, Wn, btype='bandpass')
 b = ba[0]
 a = ba[1]
 
-chunk_size = 200
+chunk_size = 1000
 
 
 subjects = [
@@ -64,9 +64,9 @@ if __name__ == '__main__':
 
                 chunks = []
                 chunk_labels = []
-                chunk_num = np.int32(trial_data.shape[1] / 200)
+                chunk_num = np.int32(trial_data.shape[1] / chunk_size)
                 for i in range(chunk_num):
-                    chunks.append(trial_data[:, i * 200:(i + 1) * 200])
+                    chunks.append(trial_data[:, i * chunk_size:(i + 1) * chunk_size])
                 chunk_labels = [trial_label.value] * chunk_num
 
                 target_file = f'{target_dir}/{subject.value}_{k.value}_{label_index}.mat'
