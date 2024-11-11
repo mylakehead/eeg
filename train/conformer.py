@@ -30,7 +30,7 @@ def start(config):
         method = FeatureMethod.DE_LDS
         best_accuracy = 0.8
 
-        model = Conformer(emb_size=40, heads=10, depth=6, n_classes=4)
+        model = Conformer(emb_size=40, inner_channels=30, heads=10, depth=6, n_classes=4)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
     else:
         raise NotImplementedError
