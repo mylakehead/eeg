@@ -8,7 +8,7 @@ from scipy.signal import cheby2, filtfilt
 from seed_iv import Subject, subject_file_map, session_label
 
 
-source_dir = "../.dataset/SEED_IV"
+source_dir = "../.dataset/SEED_IV/eeg_raw_data"
 target_dir = "../.dataset/SEED_IV_PROCESSED"
 
 fc = 200
