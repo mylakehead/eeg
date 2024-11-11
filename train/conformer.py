@@ -1,125 +1,28 @@
-"""
-Module Name: EEG Data Classification with Conformer Model
-
-Description:
-    This module provides functionality for EEG data classification using a Conformer-based neural network model.
-    The model is trained and evaluated on EEG data using k-fold cross-validation. The module includes functions
-    for loading and preprocessing EEG data, and a main `start` function that initiates the training and evaluation
-    process, tracking model performance across each fold.
-
-Functions:
-    - dataset_of_subject: Loads and processes EEG data for a specific subject and session, applying the specified
-      feature extraction method and returning the data split into chunks with corresponding labels.
-    - start: Main function to perform k-fold cross-validation on the Conformer model. It includes training and
-      evaluation steps, printing out loss and accuracy metrics for each epoch and fold.
-
-Usage:
-    The module is designed for EEG-based machine learning tasks, specifically for classification tasks where
-    data from multiple subjects is used. The Conformer model processes the EEG data and learns to classify it
-    based on labeled chunks.
-
-License:
-    MIT License
-
-    Copyright © 2024 Lakehead University, Large Scale Data Analytics Group Project
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy of this software
-    and associated documentation files (the "Software"), to deal in the Software without restriction,
-    including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
-    and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
-    subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all copies or substantial
-    portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
-    LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-Authors:
-    Kang Hong, XingJian Han, Minh Anh Nguyen
-    hongkang@hongkang.name, xhan15@lakeheadu.ca, mnguyen9@lakeheadu.ca
-
-Date:
-    Created: 2024-10-16
-    Last Modified: 2024-11-02
-"""
-
-import numpy as np
-
-from sklearn.model_selection import KFold
-
 import torch
-from tensorflow.python.layers.core import dropout
 from torch import nn
 from torch.utils.data import TensorDataset, DataLoader
-# from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from torchsummary import summary
-
-from data.seed_iv import session_label, Subject, FeatureMethod
-from pre.seed_iv import subject_file_map, process_feature_file, process_feature_file_for_experiment_a
+from data.seed_iv import Subject, FeatureMethod, Session
 from model.conformer import Conformer
-
-
-def dataset_of_experiment_a(folder, subjects, feature_method: FeatureMethod, block_size: int):
-    total_train_data_set = list()
-    total_train_labels = list()
-    total_test_data_set = list()
-    total_test_labels = list()
-
-    for subject in subjects:
-        subject_file_mapping = subject_file_map(folder)
-        files = subject_file_mapping[subject]
-
-        for k, v in files.items():
-            file = files[k]
-            labels = session_label[k]
-            train_data_set, train_data_labels, test_data_set, test_data_labels = process_feature_file_for_experiment_a(
-                feature_method, file, labels, block_size
-            )
-
-            total_train_data_set.extend(train_data_set)
-            total_train_labels.extend(train_data_labels)
-            total_test_data_set.extend(test_data_set)
-            total_test_labels.extend(test_data_labels)
-
-    return (
-        np.array(total_train_data_set), np.array(total_train_labels),
-        np.array(total_test_data_set), np.array(total_test_labels)
-    )
-
-
-def dataset_of_subject(folder, subjects, feature_method, block_size) -> tuple[list[np.ndarray], list[int]]:
-    subject_file_mapping = subject_file_map(folder)
-
-    total_data_set = list()
-    total_labels = list()
-
-    for subject in subjects:
-        files = subject_file_mapping[subject]
-        for k, v in files.items():
-            file = files[k]
-            labels = session_label[k]
-            data_set, data_labels = process_feature_file(feature_method, file, labels, block_size)
-
-            total_data_set.extend(data_set)
-            total_labels.extend(data_labels)
-
-    return total_data_set, total_labels
+from pre.conformer import get_dataset
 
 
 def start(config):
-    if torch.cuda.is_available():
-        print("GPU is available")
-    else:
-        print("GPU is not available")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     experiment = config.conformer["experiment"]
-        
-    if experiment == "PRE-A":
+    processed_path = config.dataset['processed_path']
+
+    if experiment == "A":
+        subjects = [
+            Subject.ONE
+        ]
+        sessions = [
+            Session.ONE, Session.TWO, Session.THREE
+        ]
+        train_trials = list(range(0, 16))
+        test_trails = list(range(16, 24))
+
         block_size = 10
         dim = 40
         heads = 5
@@ -127,157 +30,29 @@ def start(config):
         method = FeatureMethod.DE_LDS
         best_accuracy = 0.8
 
-        subjects = [Subject.THREE]
-        x_train, y_train, x_test, y_test = dataset_of_experiment_a(
-            config.dataset['eeg_feature_smooth_abs_path'],
-            subjects,
-            method,
-            block_size,
-        )
-        model = Conformer(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
-        model.load_state_dict(torch.load(config.conformer["A"]["PRE"]))
-        for name, param in model.named_parameters():
-            if "conv" in name or "transformer" in name:
-                param.requires_grad = False
-
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
-    elif experiment == "A":
-        block_size = 10
-        dim = 5
-        heads = 5
-        depth = 5
-        method = FeatureMethod.DE_MOVING_AVE
-        best_accuracy = 0.6
-
-        subjects = [
-            Subject.ONE
-        ]
-        x_train, y_train, x_test, y_test = dataset_of_experiment_a(
-            config.dataset['eeg_feature_smooth_abs_path'],
-            subjects,
-            method,
-            block_size,
-        )
-        model = Conformer(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4, dropout_1=0.5)
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
-    elif experiment == "B":
-        block_size = 10
-        dim = 40
-        heads = 10
-        depth = 6
-        method = FeatureMethod.DE_LDS
-        best_accuracy = 0.1
-
-        subjects = [Subject.THREE]
-        x_train, y_train, x_test, y_test = dataset_of_experiment_a(
-            config.dataset['eeg_feature_smooth_abs_path'],
-            subjects,
-            method,
-            block_size,
-        )
-        model = Conformer(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
-        # scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
-    elif experiment == "C":
-        block_size = 10
-        dim = 40
-        heads = 5
-        depth = 6
-        method = FeatureMethod.DE_LDS
-        best_accuracy = 0.95
-
-        subjects = [
-            Subject.TWO
-        ]
-
-        x, y = dataset_of_subject(
-            config.dataset['eeg_feature_smooth_abs_path'],
-            subjects,
-            method, block_size
-        )
-        x = np.array(x)
-        y = np.array(y)
-
-        kf = KFold(n_splits=5, shuffle=True, random_state=42)
-        train_index, test_index = next(kf.split(x))
-        x_train, x_test = x[train_index], x[test_index]
-        y_train, y_test = y[train_index], y[test_index]
-
-        model = Conformer(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
-    elif experiment == 'D':
-        block_size = 10
-        dim = 30
-        heads = 5
-        depth = 4
-        method = FeatureMethod.DE_LDS
-        best_accuracy = 0.1
-
-        subjects = [
-            Subject.ONE, Subject.TWO, Subject.THREE, Subject.FOUR, Subject.FIVE, Subject.SIX, Subject.SEVEN,
-            Subject.EIGHT, Subject.NINE, Subject.TEN, Subject.ELEVEN, Subject.TWELVE, Subject.THIRTEEN,
-            Subject.FOURTEEN, Subject.FIFTEEN
-        ]
-        x, y = dataset_of_subject(
-            config.dataset['eeg_feature_smooth_abs_path'],
-            subjects,
-            method, block_size
-        )
-        x = np.array(x)
-        y = np.array(y)
-
-        kf = KFold(n_splits=5, shuffle=True, random_state=42)
-        train_index, test_index = next(kf.split(x))
-        x_train, x_test = x[train_index], x[test_index]
-        y_train, y_test = y[train_index], y[test_index]
-
-        model = Conformer(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
-    elif experiment == 'PRE':
-        block_size = 10
-        # model = Conformer(channels=5, block_size=block_size, dim=40, heads=5, depth=4, classes=4) 0.8+
-        # model = Conformer(channels=5, block_size=block_size, dim=80, heads=20, depth=4, classes=4) 0.8+
-        dim = 40
-        heads = 10
-        depth = 6
-        method = FeatureMethod.DE_LDS
-        best_accuracy = 0.85
-
-        subjects = [
-            Subject.ONE, Subject.TWO, Subject.THREE, Subject.FOUR, Subject.FIVE, Subject.SIX, Subject.SEVEN, 
-            Subject.EIGHT, Subject.NINE, Subject.TEN, Subject.ELEVEN, Subject.TWELVE, Subject.THIRTEEN, 
-            Subject.FOURTEEN, Subject.FIFTEEN
-        ]
-        x, y = dataset_of_subject(
-            config.dataset['eeg_feature_smooth_abs_path'],
-            subjects,
-            method, block_size
-        )
-        x = np.array(x)
-        y = np.array(y)
-
-        x_train = x
-        y_train = y
-        x_test = np.array([])
-        y_test = np.array([])
-
-        model = Conformer(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
-
+        model = Conformer(emb_size=40, heads=10, depth=6, n_classes=4)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
     else:
         raise NotImplementedError
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
-    if config.conformer['summary']:
-        m = Conformer(5, block_size=block_size)
-        summary(m, input_size=(10, 62, 5))
-
-    x_train_tensor = torch.from_numpy(np.array(x_train)).float()
-    y_train_tensor = torch.from_numpy(np.array(y_train)).long()
-    x_test_tensor = torch.from_numpy(np.array(x_test)).float()
-    y_test_tensor = torch.from_numpy(np.array(y_test)).long()
+    train_dataset, train_labels = get_dataset(
+        processed_path,
+        subjects,
+        sessions,
+        train_trials
+    )
+    test_dataset, test_labels = get_dataset(
+        processed_path,
+        subjects,
+        sessions,
+        test_trails
+    )
+    x_train_tensor = torch.from_numpy(train_dataset).float().unsqueeze(1)
+    y_train_tensor = torch.from_numpy(train_labels).long()
+    x_test_tensor = torch.from_numpy(test_dataset).float().unsqueeze(1)
+    y_test_tensor = torch.from_numpy(test_labels).long()
 
     train_dataset = TensorDataset(x_train_tensor, y_train_tensor)
     test_dataset = TensorDataset(x_test_tensor, y_test_tensor)
@@ -364,3 +139,4 @@ def start(config):
 
     print("-" * 40)
     return
+
