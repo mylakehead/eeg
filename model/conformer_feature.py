@@ -27,6 +27,20 @@ class FCModule(nn.Sequential):
         return x
 
 
+class TemporalAttention(nn.Module):
+    def __init__(self, out_frames):
+        super(TemporalAttention, self).__init__()
+
+        self.avg_pool = nn.AdaptiveAvgPool3d(output_size=(out_frames, 1, 1))
+
+    def forward(self, x):
+        x = self.avg_pool(x)
+
+        x = torch.sigmoid(x)
+
+        return x
+
+
 class ConvModule(nn.Module):
     def __init__(self, input_channels, sample_length, inner_channels, dropout=0.5):
         super().__init__()
