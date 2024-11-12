@@ -3,44 +3,15 @@ import numpy as np
 from sklearn.model_selection import KFold
 
 import torch
-from tensorflow.python.layers.core import dropout
 from torch import nn
 from torch.utils.data import TensorDataset, DataLoader
-# from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from torchsummary import summary
 
-from data.seed_iv import session_label, Subject, FeatureMethod
-from pre.seed_iv import subject_file_map, process_feature_file, process_feature_file_for_experiment_a
-from model.conformer_f import ConformerF
-
-
-def dataset_of_experiment_a(folder, subjects, feature_method: FeatureMethod, block_size: int):
-    total_train_data_set = list()
-    total_train_labels = list()
-    total_test_data_set = list()
-    total_test_labels = list()
-
-    for subject in subjects:
-        subject_file_mapping = subject_file_map(folder)
-        files = subject_file_mapping[subject]
-
-        for k, v in files.items():
-            file = files[k]
-            labels = session_label[k]
-            train_data_set, train_data_labels, test_data_set, test_data_labels = process_feature_file_for_experiment_a(
-                feature_method, file, labels, block_size
-            )
-
-            total_train_data_set.extend(train_data_set)
-            total_train_labels.extend(train_data_labels)
-            total_test_data_set.extend(test_data_set)
-            total_test_labels.extend(test_data_labels)
-
-    return (
-        np.array(total_train_data_set), np.array(total_train_labels),
-        np.array(total_test_data_set), np.array(total_test_labels)
-    )
+from data.seed_iv import session_label, Subject, FeatureMethod, subject_file_map, Session
+from pre.seed_iv import process_feature_file
+from pre.conformer import get_feature_dataset
+from model.conformer_feature import ConformerFeature
 
 
 def dataset_of_subject(folder, subjects, feature_method, block_size) -> tuple[list[np.ndarray], list[int]]:
@@ -63,6 +34,7 @@ def dataset_of_subject(folder, subjects, feature_method, block_size) -> tuple[li
 
 
 def start(config):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     experiment = config.conformer["experiment"]
         
     if experiment == "PRE-A":
@@ -80,7 +52,7 @@ def start(config):
             method,
             block_size,
         )
-        model = ConformerF(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
+        model = ConformerFeature(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
         model.load_state_dict(torch.load(config.conformer["A"]["PRE"]))
         for name, param in model.named_parameters():
             if "conv" in name or "transformer" in name:
@@ -88,23 +60,48 @@ def start(config):
 
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
     elif experiment == "A":
-        block_size = 10
-        dim = 5
-        heads = 5
-        depth = 5
-        method = FeatureMethod.DE_MOVING_AVE
-        best_accuracy = 0.6
-
         subjects = [
-            Subject.ONE
+            Subject.ONE, Subject.TWO, Subject.THREE, Subject.FOUR, Subject.FIVE, Subject.SIX, Subject.SEVEN,
+            Subject.EIGHT, Subject.NINE, Subject.TEN, Subject.ELEVEN, Subject.TWELVE, Subject.THIRTEEN,
+            Subject.FOURTEEN, Subject.FIFTEEN
         ]
-        x_train, y_train, x_test, y_test = dataset_of_experiment_a(
-            config.dataset['eeg_feature_smooth_abs_path'],
-            subjects,
-            method,
-            block_size,
+        sessions = [
+            Session.ONE, Session.TWO, Session.THREE
+        ]
+        sample_length = 10
+        train_trials = list(range(0, 16))
+        test_trails = list(range(16, 24))
+        method = FeatureMethod.DE_LDS
+        batch_size = 200
+        
+        inner_channels = 40
+        # inner_channels = 70
+        heads = 10
+        depth = 2
+        
+        best_accuracy = 0.8
+        '''
+        model = ConformerFeature(
+            input_channels=5,
+            sample_length=10,
+            inner_channels=inner_channels,
+            heads=heads, depth=depth, classes=4
         )
-        model = ConformerF(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4, dropout_1=0.5)
+        '''
+        '''
+        model = ConformerFeature(
+            input_channels=62,
+            sample_length=10,
+            inner_channels=inner_channels,
+            heads=heads, depth=depth, classes=4
+        )
+        '''
+        model = ConformerFeature(
+            input_channels=10,
+            sample_length=10,
+            inner_channels=inner_channels,
+            heads=heads, depth=depth, classes=4
+        )
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
     elif experiment == "B":
         block_size = 10
@@ -121,7 +118,7 @@ def start(config):
             method,
             block_size,
         )
-        model = ConformerF(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
+        model = ConformerFeature(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
         # scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
     elif experiment == "C":
@@ -149,7 +146,7 @@ def start(config):
         x_train, x_test = x[train_index], x[test_index]
         y_train, y_test = y[train_index], y[test_index]
 
-        model = ConformerF(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
+        model = ConformerFeature(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
     elif experiment == 'D':
         block_size = 10
@@ -177,7 +174,7 @@ def start(config):
         x_train, x_test = x[train_index], x[test_index]
         y_train, y_test = y[train_index], y[test_index]
 
-        model = ConformerF(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
+        model = ConformerFeature(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
     elif experiment == 'PRE':
         block_size = 10
@@ -207,29 +204,45 @@ def start(config):
         x_test = np.array([])
         y_test = np.array([])
 
-        model = ConformerF(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
+        model = ConformerFeature(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
 
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
     else:
         raise NotImplementedError
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
     if config.conformer['summary']:
-        m = ConformerF(5, block_size=block_size)
+        m = ConformerFeature(5, block_size=block_size)
         summary(m, input_size=(10, 62, 5))
 
-    x_train_tensor = torch.from_numpy(np.array(x_train)).float()
-    y_train_tensor = torch.from_numpy(np.array(y_train)).long()
-    x_test_tensor = torch.from_numpy(np.array(x_test)).float()
-    y_test_tensor = torch.from_numpy(np.array(y_test)).long()
+    train_dataset, train_labels = get_feature_dataset(
+        config.dataset['eeg_feature_smooth_abs_path'],
+        subjects,
+        sessions,
+        train_trials,
+        method,
+        sample_length
+    )
+    test_dataset, test_labels = get_feature_dataset(
+        config.dataset['eeg_feature_smooth_abs_path'],
+        subjects,
+        sessions,
+        test_trails,
+        method,
+        sample_length
+    )
+
+    x_train_tensor = torch.from_numpy(train_dataset).float()
+    y_train_tensor = torch.from_numpy(train_labels).long()
+    x_test_tensor = torch.from_numpy(test_dataset).float()
+    y_test_tensor = torch.from_numpy(test_labels).long()
 
     train_dataset = TensorDataset(x_train_tensor, y_train_tensor)
     test_dataset = TensorDataset(x_test_tensor, y_test_tensor)
 
-    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     criterion = nn.CrossEntropyLoss()
 
@@ -287,12 +300,12 @@ def start(config):
                 if len(subjects) == 1:
                     torch.save(
                         model.state_dict(),
-                        f'./saved/{experiment}_method_{method.value}_train_accuracy_{epoch_accuracy:.4f}_test_accuracy_{test_accuracy:.4f}_{subjects[0]}_{block_size}_{dim}_{heads}_{depth}.pth'
+                        f'./saved/{experiment}_method_{method.value}_train_accuracy_{epoch_accuracy:.4f}_test_accuracy_{test_accuracy:.4f}_{subjects[0]}_{sample_length}_{inner_channels}_{heads}_{depth}.pth'
                     )
                 else:
                     torch.save(
                         model.state_dict(),
-                        f'./saved/{experiment}_method_{method.value}_test_accuracy_{test_accuracy:.4f}_{block_size}_{dim}_{heads}_{depth}.pth'
+                        f'./saved/{experiment}_method_{method.value}_test_accuracy_{test_accuracy:.4f}_{sample_length}_{inner_channels}_{heads}_{depth}.pth'
                     )
                 print(f"Epoch {epoch + 1}: New {experiment} model saved with accuracy {test_accuracy:.4f}")
         else:
@@ -300,7 +313,7 @@ def start(config):
                 best_accuracy = epoch_accuracy
                 torch.save(
                     model.state_dict(),
-                    f'./saved/{experiment}_{method.value}_{epoch_accuracy:.4f}_{block_size}_{dim}_{heads}_{depth}.pth'
+                    f'./saved/{experiment}_{method.value}_{epoch_accuracy:.4f}_{sample_length}_{dim}_{heads}_{depth}.pth'
                 )
                 print(f"Epoch {epoch + 1}: New {experiment} model saved with accuracy {epoch_accuracy:.4f}")
 

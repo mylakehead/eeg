@@ -9,7 +9,7 @@ from seed_iv import Subject, subject_file_map, session_label
 
 
 source_dir = "../.dataset/SEED_IV/eeg_raw_data"
-target_dir = "../.dataset/SEED_IV_PROCESSED"
+target_dir = "../.dataset/SEED_IV_RAW_PROCESSED"
 
 fc = 200
 Wl = 4
@@ -19,7 +19,7 @@ ba = cheby2(6, 60, Wn, btype='bandpass')
 b = ba[0]
 a = ba[1]
 
-chunk_size = 1000
+chunk_size = 200
 
 
 subjects = [
