@@ -54,6 +54,9 @@ def start(config):
     m = copy.copy(model)
     summary(m, input_size=(5, 10, 62))
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+
     if shuffle_test:
         all_dataset, all_labels = get_feature_dataset(
             config.dataset['eeg_feature_smooth_abs_path'],
@@ -119,6 +122,8 @@ def start(config):
         total_samples = 0
 
         for i, (batch_x, batch_y) in enumerate(train_loader):
+            batch_x, batch_y = batch_x.to(device), batch_y.to(device)
+
             optimizer.zero_grad()
 
             outputs = model(batch_x)
@@ -143,6 +148,8 @@ def start(config):
         test_loss = 0.0
         with torch.no_grad():
             for batch_x, batch_y in test_loader:
+                batch_x, batch_y = batch_x.to(device), batch_y.to(device)
+
                 y_pred = model(batch_x)
                 loss = criterion(y_pred, batch_y)
                 test_loss += loss.item()

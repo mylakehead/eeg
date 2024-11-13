@@ -3,8 +3,9 @@ import sys
 import json
 import getopt
 
-from train.conformer import start
+import torch
 
+from train.conformer import start
 
 
 class Config:
@@ -52,4 +53,9 @@ def main(argv):
 
 
 if __name__ == '__main__':
+    if torch.cuda.is_available():
+        print("GPU is available")
+    else:
+        print("GPU is not available")
+
     main(sys.argv[1:])
