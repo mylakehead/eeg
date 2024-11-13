@@ -19,6 +19,7 @@ class Config:
             data['dataset']['root_path'],
             data['dataset']['eeg_feature_smooth_path']
         )
+        self.conformer = data['Conformer']
 
 
 def parse_opt(argv: list[str]) -> str:

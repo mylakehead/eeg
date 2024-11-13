@@ -51,8 +51,9 @@ def start(config):
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
 
-    m = copy.copy(model)
-    summary(m, input_size=(5, 10, 62))
+    if config.conformer['summary']:
+        m = copy.copy(model)
+        summary(m, input_size=(5, 10, 62))
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
