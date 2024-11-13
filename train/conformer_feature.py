@@ -44,7 +44,7 @@ def dataset_of_subject(folder: str, subject: Subject, feature_method: FeatureMet
 def start(config):
     block_size = 10
     x, y = dataset_of_subject(
-        config.dataset['eeg_feature_smooth_abs_path'], Subject.THREE, FeatureMethod.DE_LDS, block_size
+        config.dataset['eeg_feature_smooth_abs_path'], Subject.ONE, FeatureMethod.DE_LDS, block_size
     )
 
     # m = ConformerFeature(5)
@@ -53,7 +53,8 @@ def start(config):
     x = np.array(x)
     y = np.array(y)
 
-    kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    kf = KFold(n_splits=3, shuffle=True, random_state=42)
+    # kf = KFold(n_splits=5, shuffle=False)
 
     for fold, (train_index, test_index) in enumerate(kf.split(x)):
         print(f"Fold {fold + 1}")

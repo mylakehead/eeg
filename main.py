@@ -21,7 +21,6 @@ class Config:
 
         self.eeg_it_net = data['EEG-ITNet']
         self.conformer = data['Conformer']
-        self.vit = data['ViT']
 
 
 def parse_opt(argv: list[str]) -> str:
