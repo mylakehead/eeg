@@ -124,28 +124,15 @@ class ConvModule(nn.Module):
         super().__init__()
 
         self.input = nn.Sequential(
-            # input shape:  batch_size, 1,   eeg_channels, sequence
-            # output shape: batch_size, dim, eeg_channels, sequence - 24
             nn.Conv2d(input_channels, dim, (1, 1)),
-            # input shape:  batch_size, dim, eeg_channels, sequence - 24
-            # output shape: batch_size, dim, 1,            sequence - 24
             nn.Conv2d(dim, dim, (block_size, 1)),
-            # nn.Dropout(0.5),
-            # features(channels) normalization
             nn.BatchNorm2d(dim),
             nn.ELU(),
-            # input shape:  batch_size, dim, 1, sequence - 24
-            # output shape: batch_size, dim, 1, (sequence - 99)/15 + 1
-            # nn.AvgPool2d((1, 1)),
             # nn.Dropout(0.5),
         )
 
         self.projection = nn.Sequential(
-            # input shape:  batch_size, dim, 1, (sequence - 99)/15 + 1
-            # output shape: batch_size, dim, 1, (sequence - 99)/15 + 1
             nn.Conv2d(dim, dim, (1, 1), stride=(1, 1)),
-            # input shape:  batch_size, dim, 1, (sequence - 99)/15 + 1
-            # output shape: batch_size, 1 * (sequence - 99)/15 + 1, dim
             Rearrange('b e (h) (w) -> b (h w) e'),
         )
 

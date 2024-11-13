@@ -22,19 +22,7 @@ def pad_and_split(array, block_size):
     return blocks
 
 
-def process_feature_file(feature_method: FeatureMethod, file_name: str, labels: list[int], block_size: int) -> tuple[
-    list[np.ndarray], list[int]]:
-    """Process a feature file.
-
-    Args:
-        feature_method (FeatureMethod): The feature method to use.
-        file_name (str): The file name to process.
-        labels (list[int]): The labels for the file.
-        block_size (int): The block size to use.
-
-    Returns:
-        tuple[list[np.ndarray], list[int]]: The processed data and labels.
-    """
+def process_feature_file(feature_method, file_name, labels, block_size):
     data = sio.loadmat(file_name)
     data.pop('__header__', None)
     data.pop('__version__', None)

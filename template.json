@@ -1,20 +1,14 @@
 {
-  "active": "ViT",
   "dataset": {
     "root_path": "",
     "eeg_raw_data_path": "eeg_raw_data",
     "eeg_feature_smooth_path": "eeg_feature_smooth"
   },
   "Conformer": {
+    "experiment": "B",
+    "summary": true,
+    "A": {
 
-  },
-  "ViT": {
-
-  },
-  "EEG-ITNet": {
-    "hyperparameters": {
-      "epochs": 10,
-      "rate": 0.00003
     }
   }
 }

@@ -1,4 +1,4 @@
-from data.seed_iv import sessions, session_label, Gender, gender_subject
+from data.seed_iv import Session, session_label, Gender, gender_subject
 
 
 def test_session_label():
@@ -13,7 +13,7 @@ def test_session_label():
     assert len(session_label[2]) == len(origin[2])
     assert len(session_label[3]) == len(origin[3])
 
-    for s in sessions:
+    for s in [Session.ONE.value, Session.TWO.value, Session.THREE.value]:
         for i, v in enumerate(session_label[s]):
             assert v.value == origin[s][i]
 
