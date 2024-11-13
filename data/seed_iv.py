@@ -1,3 +1,5 @@
+import os
+import re
 from enum import Enum
 
 
@@ -76,3 +78,25 @@ class FeatureMethod(Enum):
     DE_MOVING_AVE = 1
     PSD_LDS = 2
     PSD_MOVING_AVE = 3
+
+
+def subject_file_map(folder):
+    file_map = dict()
+    for s in Subject:
+        file_map[s] = dict()
+
+    pattern = r'(\d+)_(\d{8})\.mat'
+    for root, _, files in os.walk(folder):
+        paths = root.split(os.sep)
+        session = paths[-1]
+
+        for file_name in files:
+            match = re.match(pattern, file_name)
+            if match:
+                s = int(match.group(1))
+                _ = match.group(2)
+
+                abs_path = os.path.join(root, file_name)
+                file_map[Subject(s)][Session(int(session))] = abs_path
+
+    return file_map

@@ -120,13 +120,13 @@ class EncoderBlock(nn.Sequential):
 
 
 class ConvModule(nn.Module):
-    def __init__(self, channels, block_size, dim):
+    def __init__(self, input_channels, block_size, dim):
         super().__init__()
 
         self.input = nn.Sequential(
             # input shape:  batch_size, 1,   eeg_channels, sequence
             # output shape: batch_size, dim, eeg_channels, sequence - 24
-            nn.Conv2d(channels, dim, (1, 1)),
+            nn.Conv2d(input_channels, dim, (1, 1)),
             # input shape:  batch_size, dim, eeg_channels, sequence - 24
             # output shape: batch_size, dim, 1,            sequence - 24
             nn.Conv2d(dim, dim, (block_size, 1)),
@@ -162,12 +162,12 @@ class TransformerModule(nn.Sequential):
         super().__init__(*[EncoderBlock(dim, heads) for _ in range(depth)])
 
 
-class ConformerFeature(nn.Sequential):
+class Conformer(nn.Sequential):
     """Conformer feature model."""
-    def __init__(self, channels, block_size, dim=40, heads=10, depth=6, classes=4):
+    def __init__(self, input_channels, block_size, dim, heads, depth, classes):
         super().__init__()
 
-        self.conv = ConvModule(channels, block_size, dim)
+        self.conv = ConvModule(input_channels, block_size, dim)
         self.transformer = TransformerModule(dim, heads, depth)
         self.fc = FCModule(self.feature_dim(), classes)
 
