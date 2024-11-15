@@ -4,8 +4,7 @@ import scipy
 import numpy as np
 import tensorflow as tf
 
-from data.seed_iv import Session, session_label
-from .seed_iv import subject_file_map
+from data.seed_iv import Session, session_label, subject_file_map
 
 
 def filter_egg(raw, fs):
@@ -46,7 +45,7 @@ def split_train_test(file_name, labels):
     data.pop('__version__', None)
     data.pop('__globals__', None)
 
-    half = len(data.items()) // 2
+    half = len(data.items()) // 3 * 2
 
     test_chunk_list = []
     test_label_list = []

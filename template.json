@@ -2,12 +2,17 @@
   "active": "Conformer",
   "dataset": {
     "root_path": "",
+    "raw_processed_path": "",
     "eeg_raw_data_path": "eeg_raw_data",
     "eeg_feature_smooth_path": "eeg_feature_smooth"
   },
   "Conformer": {
+    "type": "RAW",
     "experiment": "A",
-    "summary": false
+    "summary": false,
+    "A": {
+      "PRE": "",
+    }
   },
   "EEG-ITNet": {
     "hyperparameters": {

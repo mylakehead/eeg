@@ -81,11 +81,14 @@ def main(argv):
 
     active = data['active']
     if active == 'Conformer':
-        from train.conformer import start
-        start(config)
-    elif active == 'Conformer-f':
-        from train.conformer_f import start
-        start(config)
+        if data['Conformer']['type'] == 'RAW':
+            from train.conformer_raw import start
+            start(config)
+        elif data['Conformer']['type'] == 'FEATURE':
+            from train.conformer_feature import start
+            start(config)
+        else:
+            raise NotImplementedError
     elif active == 'EEG-ITNet':
         from train.eeg_itnet import start
         start(config)

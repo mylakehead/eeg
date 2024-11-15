@@ -100,8 +100,8 @@ def train(s1_train, s2_train, s2_test, s3_train, s3_test, c_s1_train_label, c_s2
 
 def start(config):
     eeg_raw_data_path = os.path.join(
-        config.eeg_it_net['dataset']['root'],
-        config.eeg_it_net['dataset']['eeg_raw_data']
+        config.dataset['root_path'],
+        config.dataset['eeg_raw_data_path']
     )
 
     (
@@ -113,3 +113,37 @@ def start(config):
         s1_train, s2_train, s2_test, s3_train, s3_test, c_s1_train_label,
         c_s2_train_label, c_s2_test_label, c_s3_train_label, c_s3_test_label, Subject.THREE.value
     )
+
+    raw_processed_path = config.dataset['raw_processed_path']
+
+    subjects = [
+        Subject.ONE, Subject.TWO, Subject.THREE, Subject.FOUR, Subject.FIVE, Subject.SIX, Subject.SEVEN,
+        Subject.EIGHT, Subject.NINE, Subject.TEN, Subject.ELEVEN, Subject.TWELVE, Subject.THIRTEEN,
+        Subject.FOURTEEN, Subject.FIFTEEN
+    ]
+    sessions = [
+        Session.ONE, Session.TWO, Session.THREE
+    ]
+    train_trials = list(range(0, 16))
+    test_trails = list(range(16, 24))
+    batch_size = 200
+
+    best_accuracy = 0.8
+
+    model = Conformer(emb_size=40, inner_channels=40, heads=10, depth=6, n_classes=4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
+    model.to(device)
+
+    train_dataset, train_labels = get_raw_dataset(
+        raw_processed_path,
+        subjects,
+        sessions,
+        train_trials
+    )
+    test_dataset, test_labels = get_raw_dataset(
+        raw_processed_path,
+        subjects,
+        sessions,
+        test_trails
+    )
+
