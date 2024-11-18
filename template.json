@@ -1,4 +1,5 @@
 {
+  "mode": "eda",
   "dataset": {
     "root_path": "",
     "eeg_raw_data_path": "eeg_raw_data",

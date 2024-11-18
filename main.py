@@ -6,10 +6,12 @@ import getopt
 import torch
 
 from train.conformer import start
+from eda.f_1 import analyze
 
 
 class Config:
     def __init__(self, data: dict):
+        self.mode = data['mode']
         self.dataset = data['dataset']
         self.dataset['eeg_raw_data_abs_path'] = os.path.join(
             data['dataset']['root_path'],
@@ -50,7 +52,10 @@ def main(argv):
     data = parse_config(config_file)
     config = Config(data)
 
-    start(config)
+    if config.mode == 'eda':
+        analyze(config)
+    else:
+        start(config)
 
 
 if __name__ == '__main__':
