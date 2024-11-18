@@ -3,6 +3,7 @@ import copy
 import numpy as np
 
 from sklearn.model_selection import KFold
+import matplotlib.pyplot as plt
 
 import torch
 from torch import nn
@@ -10,12 +11,12 @@ from torch.utils.data import TensorDataset, DataLoader
 
 from torchsummary import summary
 
-from data.seed_iv import Subject, FeatureMethod, Session
-from pre.conformer import get_feature_dataset, dataset_of_subject
+from data.seed_iv import Subject, FeatureMethod, Session, Band
+from pre.conformer import get_feature_dataset
 from model.conformer import Conformer
 
 
-def a_model(config, old):
+def a_model(config):
     subjects = [
         Subject.ONE, Subject.TWO, Subject.THREE, Subject.FOUR, Subject.FIVE, Subject.SIX, Subject.SEVEN,
         Subject.EIGHT, Subject.NINE, Subject.TEN, Subject.ELEVEN, Subject.TWELVE, Subject.THIRTEEN,
@@ -24,8 +25,9 @@ def a_model(config, old):
     sessions = [
         Session.ONE, Session.TWO, Session.THREE
     ]
+    bands = [Band.ALPHA, Band.BETA, Band.GAMMA]
     block_size = 10
-    input_channels = 5
+    input_channels = len(bands)
     dim = 40
     heads = 10
     depth = 6
@@ -36,7 +38,7 @@ def a_model(config, old):
     batch_size = 1
     shuffle_test = True
     shuffle_spilt = 3
-    num_epochs = 1000
+    num_epochs = 100
 
     model = Conformer(
         input_channels=input_channels,
@@ -46,6 +48,10 @@ def a_model(config, old):
         depth=depth,
         classes=4
     )
+    if config.conformer['summary']:
+        m = copy.copy(model)
+        summary(m, input_size=(input_channels, block_size, 62))
+
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
 
@@ -57,6 +63,7 @@ def a_model(config, old):
             all_trails,
             method,
             block_size,
+            bands
         )
         kf = KFold(n_splits=shuffle_spilt, shuffle=True, random_state=42)
         train_index, test_index = next(kf.split(all_dataset))
@@ -70,6 +77,7 @@ def a_model(config, old):
             train_trials,
             method,
             block_size,
+            bands
         )
         x_test, y_test = get_feature_dataset(
             config.dataset['eeg_feature_smooth_abs_path'],
@@ -78,20 +86,8 @@ def a_model(config, old):
             test_trails,
             method,
             block_size,
+            bands
         )
-
-    if old:
-        x, y = dataset_of_subject(
-            config.dataset['eeg_feature_smooth_abs_path'], Subject.ONE, method, block_size
-        )
-        x = np.array(x)
-        y = np.array(y)
-
-        kf = KFold(n_splits=3, shuffle=True, random_state=42)
-
-        train_index, test_index = next(kf.split(x))
-        x_train, x_test = np.array(x[train_index]), np.array(x[test_index])
-        y_train, y_test = np.array(y[train_index]), np.array(y[test_index])
 
     return model, x_train, x_test, y_train, y_test, criterion, optimizer, num_epochs, batch_size
 
@@ -111,8 +107,9 @@ def b_model(config):
     test_sessions = [
         Session.TWO
     ]
+    bands = [Band.DELTA, Band.THETA, Band.ALPHA, Band.BETA, Band.GAMMA]
     block_size = 10
-    input_channels = 5
+    input_channels = len(bands)
     dim = 40
     heads = 10
     depth = 6
@@ -121,7 +118,7 @@ def b_model(config):
     batch_size = 1
     shuffle_test = True
     shuffle_spilt = 2
-    num_epochs = 1000
+    num_epochs = 100
 
     model = Conformer(
         input_channels=input_channels,
@@ -142,6 +139,7 @@ def b_model(config):
             all_trails,
             method,
             block_size,
+            bands,
         )
         kf = KFold(n_splits=shuffle_spilt, shuffle=True, random_state=42)
         train_index, test_index = next(kf.split(all_dataset))
@@ -155,6 +153,7 @@ def b_model(config):
             all_trails,
             method,
             block_size,
+            bands
         )
         x_test, y_test = get_feature_dataset(
             config.dataset['eeg_feature_smooth_abs_path'],
@@ -163,6 +162,7 @@ def b_model(config):
             all_trails,
             method,
             block_size,
+            bands
         )
 
     return model, x_train, x_test, y_train, y_test, criterion, optimizer, num_epochs, batch_size
@@ -170,15 +170,11 @@ def b_model(config):
 
 def start(config):
     if config.conformer['experiment'] == 'A':
-        model, x_train, x_test, y_train, y_test, criterion, optimizer, epochs, batch_size = a_model(config, False)
+        model, x_train, x_test, y_train, y_test, criterion, optimizer, epochs, batch_size = a_model(config)
     elif config.conformer['experiment'] == 'B':
         model, x_train, x_test, y_train, y_test, criterion, optimizer, epochs, batch_size = b_model(config)
     else:
         raise NotImplementedError
-
-    if config.conformer['summary']:
-        m = copy.copy(model)
-        summary(m, input_size=(5, 10, 62))
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -194,6 +190,10 @@ def start(config):
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
+    train_accuracies = []
+    test_accuracies = []
+    train_losses = []
+    test_losses = []
     for epoch in range(epochs):
         model.train()
 
@@ -221,6 +221,8 @@ def start(config):
 
         epoch_loss = running_loss / len(train_loader)
         epoch_accuracy = correct_predictions / total_samples
+        train_losses.append(epoch_loss)
+        train_accuracies.append(epoch_accuracy)
 
         print(f"Epoch [{epoch + 1}/{epochs}], Loss: {epoch_loss:.4f}, Accuracy: {epoch_accuracy:.4f}")
 
@@ -241,6 +243,28 @@ def start(config):
 
         test_loss = test_loss / len(test_loader)
         test_accuracy = correct / total
+        test_losses.append(test_loss)
+        test_accuracies.append(test_accuracy)
         print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
 
     print("-" * 64)
+
+    plt.figure(figsize=(12, 5))
+    plt.plot(range(1, epochs + 1), train_accuracies, label='Train Accuracy')
+    plt.plot(range(1, epochs + 1), test_accuracies, label='Test Accuracy')
+    plt.title('Accuracy per Epoch')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.grid(alpha=0.3)
+    plt.show()
+
+    plt.figure(figsize=(12, 5))
+    plt.plot(range(1, epochs + 1), train_losses, label='Train Loss')
+    plt.plot(range(1, epochs + 1), test_losses, label='Test Loss')
+    plt.title('Loss per Epoch')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(alpha=0.3)
+    plt.show()

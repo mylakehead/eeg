@@ -154,13 +154,16 @@ class Conformer(nn.Sequential):
     def __init__(self, input_channels, block_size, dim, heads, depth, classes):
         super().__init__()
 
+        self.input_channels = input_channels
+        self.block_size = block_size
+
         self.conv = ConvModule(input_channels, block_size, dim)
         self.transformer = TransformerModule(dim, heads, depth)
         self.fc = FCModule(self.feature_dim(), classes)
 
     def feature_dim(self):
         with torch.no_grad():
-            mock_eeg = torch.zeros(1, 5, 10, 62)
+            mock_eeg = torch.zeros(1, self.input_channels, self.block_size, 62)
             mock_eeg = self.conv(mock_eeg)
             mock_eeg = self.transformer(mock_eeg)
             mock_eeg = mock_eeg.flatten(start_dim=1)

@@ -15,6 +15,7 @@ def analyze(config):
     sessions = [
         Session.ONE, Session.TWO, Session.THREE
     ]
+    bands = [Band.DELTA, Band.THETA, Band.ALPHA, Band.BETA, Band.GAMMA]
     trails = list(range(0, 24))
     method = FeatureMethod.DE_LDS
     block_size = 10
@@ -25,7 +26,8 @@ def analyze(config):
         sessions,
         trails,
         method,
-        block_size
+        block_size,
+        bands
     )
 
     groups = {}
