@@ -6,7 +6,7 @@ import getopt
 import torch
 
 from train.conformer import start
-from eda.f_1 import analyze
+from eda.f_test import analyze
 
 
 class Config:

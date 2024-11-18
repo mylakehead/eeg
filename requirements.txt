@@ -5,3 +5,5 @@ numpy == 1.26.4
 einops == 0.8.0
 torchsummary == 1.5.1
 scikit-learn == 1.5.2
+matplotlib == 3.9.2
+mpld3 == 0.5.10

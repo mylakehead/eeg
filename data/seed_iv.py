@@ -15,6 +15,14 @@ class Emotion(Enum):
     HAPPY = 3
 
 
+class Band(Enum):
+    DELTA = 0
+    THETA = 1
+    ALPHA = 2
+    BETA = 3
+    GAMMA = 4
+
+
 class Subject(Enum):
     ONE = 1
     TWO = 2
