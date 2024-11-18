@@ -40,18 +40,20 @@ def analyze(config):
         band_index = band.value
 
         band_group = []
+        num = 0
         total = 0
         for _, emotion in enumerate([Emotion.NEUTRAL, Emotion.SAD, Emotion.FEAR, Emotion.HAPPY]):
             g = groups[emotion][band_index]
             g = np.mean(g, axis=1)
             band_group.append(g)
-            total += len(g)
+            num += len(g)
+            total += np.sum(g)
 
-        overall_mean = np.mean([item for group in band_group for item in group])
+        overall_mean = total/num
 
         k = len(band_group)
         s_b2 = sum(len(group) * (np.mean(group) - overall_mean) ** 2 for group in band_group) / (k - 1)
-        s_w2 = sum(sum((x - np.mean(group)) ** 2 for x in group) for group in band_group) / (total - k)
+        s_w2 = sum(sum((x - np.mean(group)) ** 2 for x in group) for group in band_group) / (num - k)
 
         f_statistic = s_b2 / s_w2
 
