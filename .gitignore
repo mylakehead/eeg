@@ -168,3 +168,5 @@ cython_debug/
 local_config.json
 
 .vscode/launch.json
+
+results

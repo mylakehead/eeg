@@ -1,4 +1,6 @@
 import copy
+import datetime
+import os
 
 import numpy as np
 
@@ -14,7 +16,9 @@ from torchsummary import summary
 from data.seed_iv import Subject, FeatureMethod, Session, Band
 from pre.conformer import get_feature_dataset
 from model.conformer import Conformer
+from logger.logger import TrainingLogger
 
+logger = TrainingLogger()
 
 def a_model(config):
     subjects = [
@@ -165,6 +169,18 @@ def b_model(config):
             bands
         )
 
+    training_params = {
+        "block_size": block_size,
+        "dim": dim,
+        "heads": heads,
+        "depth": depth,
+        "shuffle_test": shuffle_test,
+        "num_epochs": num_epochs,
+        "method": method.name,
+        "bands": [band.name for band in bands]
+    }
+    logger.log_parameters(params = training_params)
+    
     return model, x_train, x_test, y_train, y_test, criterion, optimizer, num_epochs, batch_size
 
 
@@ -249,6 +265,13 @@ def start(config):
 
     print("-" * 64)
 
+    # Prepare timestamped file naming
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    plot_dir = "results/plots"
+    os.makedirs(plot_dir, exist_ok=True)
+    accuracy_plot_path = os.path.join(plot_dir, f"accuracy_plot_{timestamp}.png")
+    loss_plot_path = os.path.join(plot_dir, f"loss_plot_{timestamp}.png")
+    
     plt.figure(figsize=(12, 5))
     plt.plot(range(1, epochs + 1), train_accuracies, label='Train Accuracy')
     plt.plot(range(1, epochs + 1), test_accuracies, label='Test Accuracy')
@@ -257,6 +280,7 @@ def start(config):
     plt.ylabel('Accuracy')
     plt.legend()
     plt.grid(alpha=0.3)
+    plt.savefig(accuracy_plot_path)
     plt.show()
 
     plt.figure(figsize=(12, 5))
@@ -267,4 +291,14 @@ def start(config):
     plt.ylabel('Loss')
     plt.legend()
     plt.grid(alpha=0.3)
+    plt.savefig(loss_plot_path)
     plt.show()
+
+    training_results = {
+        "train_accuracies": train_accuracies,
+        "test_accuracies": test_accuracies,
+        "train_losses": train_losses,
+        "test_losses": test_losses,
+    }   
+    logger.log_result(training_results)
+    logger.save_to_file()
