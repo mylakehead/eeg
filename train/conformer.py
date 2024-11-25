@@ -1,3 +1,35 @@
+"""
+Training and testing models based on different experiment requirements.
+
+Copyright:
+    MIT License
+
+    Copyright © 2024 Lakehead University, Large Scale Data Analytics Group Project
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+    and associated documentation files (the "Software"), to deal in the Software without restriction,
+    including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
+    subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all copies or substantial
+    portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+    LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Authors:
+    Kang Hong, XingJian Han, Minh Anh Nguyen
+    hongkang@hongkang.name, xhan15@lakeheadu.ca, mnguyen9@lakeheadu.ca
+
+Date:
+    Created: 2024-10-02
+    Last Modified: 2024-11-24
+"""
+
 import copy
 
 import numpy as np
@@ -17,6 +49,16 @@ from model.conformer import Conformer
 
 
 def a_model(config):
+    """
+    experiment A
+
+    With shuffle_test: False
+    Out of the 24 trials used in sample collection, the first 16 trials are the training data,
+    and the last 8 trials are the test data.
+
+    With shuffle_test: True
+    Shuffle all the data, select two-thirds as the training set, and one-third as the test set.
+    """
     subjects = [
         Subject.ONE, Subject.TWO, Subject.THREE, Subject.FOUR, Subject.FIVE, Subject.SIX, Subject.SEVEN,
         Subject.EIGHT, Subject.NINE, Subject.TEN, Subject.ELEVEN, Subject.TWELVE, Subject.THIRTEEN,
@@ -48,6 +90,8 @@ def a_model(config):
         depth=depth,
         classes=4
     )
+
+    # show model summary
     if config.conformer['summary']:
         m = copy.copy(model)
         summary(m, input_size=(input_channels, block_size, 62))
@@ -93,6 +137,16 @@ def a_model(config):
 
 
 def b_model(config):
+    """
+    experiment B
+
+    With shuffle_test: False
+    Out of the 3 sessions used in sample collection, the data of one session are used as the training set,
+    and the data of another session are used as the test set.
+
+    With shuffle_test: True
+    Shuffle two sessions' data, select half as the training set, and another half as the test set.
+    """
     subjects = [
         Subject.ONE, Subject.TWO, Subject.THREE, Subject.FOUR, Subject.FIVE, Subject.SIX, Subject.SEVEN,
         Subject.EIGHT, Subject.NINE, Subject.TEN, Subject.ELEVEN, Subject.TWELVE, Subject.THIRTEEN,
@@ -176,6 +230,7 @@ def start(config):
     else:
         raise NotImplementedError
 
+    # GPU support
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
