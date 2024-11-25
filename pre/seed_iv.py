@@ -9,6 +9,20 @@ from data.seed_iv import Subject, Session, FeatureMethod
 
 
 
+def pad_and_split(array, block_size):
+    current_length = array.shape[1]
+
+    pad_length = block_size - (current_length % block_size) if current_length % block_size != 0 else 0
+    total_length = current_length + pad_length
+
+    if pad_length > 0:
+        pad_values = array[:, :pad_length, :]
+        padded_array = np.concatenate((pad_values, array), axis=1)
+    else:
+        padded_array = array
+
+    blocks = np.split(padded_array[:, :total_length, :], total_length // block_size, axis=1)
+    return blocks
 
 
 def process_feature_file(feature_method, file_name, labels, block_size) -> tuple[list[np.ndarray], list[int]]:

@@ -12,6 +12,8 @@ from data.seed_iv import session_label, Subject, FeatureMethod, subject_file_map
 from pre.seed_iv import process_feature_file
 from pre.conformer import get_feature_dataset
 from model.conformer_feature import ConformerFeature
+from model.sgcn import SignedGCNConv
+from model.conformer_b import ConformerB
 
 
 def dataset_of_subject(folder, subjects, feature_method, block_size) -> tuple[list[np.ndarray], list[int]]:
@@ -74,53 +76,36 @@ def start(config):
         method = FeatureMethod.DE_LDS
         batch_size = 200
         
-        inner_channels = 40
-        # inner_channels = 70
+        inner_channels = 10
         heads = 10
-        depth = 2
+        depth = 3
         
         best_accuracy = 0.8
-        '''
-        model = ConformerFeature(
-            input_channels=5,
-            sample_length=10,
-            inner_channels=inner_channels,
-            heads=heads, depth=depth, classes=4
-        )
-        '''
-        '''
-        model = ConformerFeature(
-            input_channels=62,
-            sample_length=10,
-            inner_channels=inner_channels,
-            heads=heads, depth=depth, classes=4
-        )
-        '''
+
         model = ConformerFeature(
             input_channels=10,
             sample_length=10,
             inner_channels=inner_channels,
             heads=heads, depth=depth, classes=4
         )
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     elif experiment == "B":
-        block_size = 10
-        dim = 40
-        heads = 10
-        depth = 6
+        subjects = [
+            Subject.ONE, Subject.TWO, Subject.THREE, Subject.FOUR, Subject.FIVE, Subject.SIX, Subject.SEVEN,
+            Subject.EIGHT, Subject.NINE, Subject.TEN, Subject.ELEVEN, Subject.TWELVE, Subject.THIRTEEN,
+            Subject.FOURTEEN, Subject.FIFTEEN
+        ]
+        sessions = [
+            Session.ONE, Session.TWO, Session.THREE
+        ]
+        sample_length = 10
+        train_trials = list(range(0, 16))
+        test_trails = list(range(16, 24))
         method = FeatureMethod.DE_LDS
-        best_accuracy = 0.1
+        batch_size = 200
 
-        subjects = [Subject.THREE]
-        x_train, y_train, x_test, y_test = dataset_of_experiment_a(
-            config.dataset['eeg_feature_smooth_abs_path'],
-            subjects,
-            method,
-            block_size,
-        )
-        model = ConformerFeature(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
-        # scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
+        model = SignedGCNConv(in_channels=5, hidden_channels=16, out_channels=4)
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     elif experiment == "C":
         block_size = 10
         dim = 40
@@ -154,12 +139,11 @@ def start(config):
         heads = 5
         depth = 4
         method = FeatureMethod.DE_LDS
-        best_accuracy = 0.1
+        best_accuracy = 0.9
+        batch_size = 200
 
         subjects = [
-            Subject.ONE, Subject.TWO, Subject.THREE, Subject.FOUR, Subject.FIVE, Subject.SIX, Subject.SEVEN,
-            Subject.EIGHT, Subject.NINE, Subject.TEN, Subject.ELEVEN, Subject.TWELVE, Subject.THIRTEEN,
-            Subject.FOURTEEN, Subject.FIFTEEN
+            Subject.THREE
         ]
         x, y = dataset_of_subject(
             config.dataset['eeg_feature_smooth_abs_path'],
@@ -171,10 +155,10 @@ def start(config):
 
         kf = KFold(n_splits=5, shuffle=True, random_state=42)
         train_index, test_index = next(kf.split(x))
-        x_train, x_test = x[train_index], x[test_index]
-        y_train, y_test = y[train_index], y[test_index]
+        train_dataset, test_dataset = x[train_index], x[test_index]
+        train_labels, test_labels = y[train_index], y[test_index]
 
-        model = ConformerFeature(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
+        model = ConformerB(channels=5, block_size=block_size, dim=dim, heads=heads, depth=depth, classes=4)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
     elif experiment == 'PRE':
         block_size = 10
@@ -216,6 +200,7 @@ def start(config):
         m = ConformerFeature(5, block_size=block_size)
         summary(m, input_size=(10, 62, 5))
 
+    '''
     train_dataset, train_labels = get_feature_dataset(
         config.dataset['eeg_feature_smooth_abs_path'],
         subjects,
@@ -232,6 +217,7 @@ def start(config):
         method,
         sample_length
     )
+    '''
 
     x_train_tensor = torch.from_numpy(train_dataset).float()
     y_train_tensor = torch.from_numpy(train_labels).long()
@@ -305,7 +291,7 @@ def start(config):
                 else:
                     torch.save(
                         model.state_dict(),
-                        f'./saved/{experiment}_method_{method.value}_test_accuracy_{test_accuracy:.4f}_{sample_length}_{inner_channels}_{heads}_{depth}.pth'
+                        f'./saved/{experiment}_method_{method.value}_test_accuracy_{test_accuracy:.4f}_{inner_channels}_{heads}_{depth}.pth'
                     )
                 print(f"Epoch {epoch + 1}: New {experiment} model saved with accuracy {test_accuracy:.4f}")
         else:
@@ -313,7 +299,7 @@ def start(config):
                 best_accuracy = epoch_accuracy
                 torch.save(
                     model.state_dict(),
-                    f'./saved/{experiment}_{method.value}_{epoch_accuracy:.4f}_{sample_length}_{dim}_{heads}_{depth}.pth'
+                    f'./saved/{experiment}_{method.value}_{epoch_accuracy:.4f}_{dim}_{heads}_{depth}.pth'
                 )
                 print(f"Epoch {epoch + 1}: New {experiment} model saved with accuracy {epoch_accuracy:.4f}")
 

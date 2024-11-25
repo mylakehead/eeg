@@ -12,13 +12,16 @@ class FCModule(nn.Sequential):
         super().__init__()
 
         self.fc = nn.Sequential(
-            nn.Linear(in_channels, hid_channels * 8),
+            # nn.Linear(in_channels, hid_channels * 8),
+            nn.Linear(in_channels, 128),
             nn.ELU(),
             nn.Dropout(dropout),
-            nn.Linear(hid_channels * 8, hid_channels),
+            # nn.Linear(hid_channels * 8, hid_channels),
+            nn.Linear(128, 32),
             nn.ELU(),
             nn.Dropout(dropout),
-            nn.Linear(hid_channels, num_classes)
+            # nn.Linear(hid_channels, num_classes)
+            nn.Linear(32, num_classes)
         )
 
     def forward(self, x):
@@ -27,39 +30,25 @@ class FCModule(nn.Sequential):
         return x
 
 
-class TemporalAttention(nn.Module):
-    def __init__(self, out_frames):
-        super(TemporalAttention, self).__init__()
-
-        self.avg_pool = nn.AdaptiveAvgPool3d(output_size=(out_frames, 1, 1))
-
-    def forward(self, x):
-        x = self.avg_pool(x)
-
-        x = torch.sigmoid(x)
-
-        return x
-
-
 class ConvModule(nn.Module):
     def __init__(self, input_channels, sample_length, inner_channels, dropout=0.5):
         super().__init__()
 
         self.input = nn.Sequential(
-            # 5 samples 62
-            # nn.Conv2d(input_channels, inner_channels, (10, 1), (10, 1)),
-            # 62 samples 5
-            # nn.Conv2d(input_channels, inner_channels, (1, 5), (1, 5)),
-            # samples 62 5
             nn.Conv2d(input_channels, inner_channels, (1, 1), (1, 1)),
-            nn.BatchNorm2d(inner_channels),
-            nn.ELU(),
-            # nn.AvgPool2d((1, 75), (1, 15)),
-            nn.Dropout(dropout),
+            # nn.Conv2d(inner_channels, inner_channels, (62, 1), (1, 1)),
+            # nn.Dropout(0.5),
+            # features(channels) normalization
+            # nn.BatchNorm2d(inner_channels),
+            # nn.ELU(),
+            # input shape:  batch_size, dim, 1, sequence - 24
+            # output shape: batch_size, dim, 1, (sequence - 99)/15 + 1
+            # nn.AvgPool2d((1, 3), (1, 1)),
+            # nn.Dropout(0.5),
         )
 
         self.projection = nn.Sequential(
-            # nn.Conv2d(dim, dim, (1, 1), stride=(1, 1)),
+            # nn.Conv2d(inner_channels, inner_channels, (1, 1), stride=(1, 1)),
             Rearrange('b e (h) (w) -> b (h w) e'),
         )
 
@@ -82,9 +71,7 @@ class ConformerFeature(nn.Sequential):
 
     def feature_dim(self):
         with torch.no_grad():
-            # mock_eeg = torch.zeros(1, 5, self.sample_length, 62)
-            # mock_eeg = torch.zeros(1, 62, self.sample_length, 5)
-            mock_eeg = torch.zeros(1, self.sample_length, 62, 5)
+            mock_eeg = torch.zeros(1, 10, 62, 1)
             mock_eeg = self.conv(mock_eeg)
             mock_eeg = self.transformer(mock_eeg)
             mock_eeg = mock_eeg.flatten(start_dim=1)

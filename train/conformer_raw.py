@@ -15,7 +15,7 @@ def start(config):
 
     if experiment == "A":
         subjects = [
-            Subject.THREE
+            Subject.ONE
         ]
         sessions = [
             Session.ONE, Session.TWO, Session.THREE

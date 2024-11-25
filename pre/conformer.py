@@ -48,6 +48,8 @@ def pad_and_split(array, block_size, index):
     else:
         raise IndexError
 
+    blocks = [block[:, :, 1:2] for block in blocks]
+
     return blocks
 
 
@@ -83,8 +85,6 @@ def get_feature_dataset(data_path, subjects, sessions, trails, method, sample_le
                     if key != pattern:
                         continue
 
-                    # data_transpose = np.transpose(trail_data, (2, 1, 0))
-                    # chunks = pad_and_split(data_transpose, sample_length, 1)
                     data_transpose = np.transpose(trail_data, (1, 0, 2))
                     chunks = pad_and_split(data_transpose, sample_length, 0)
 

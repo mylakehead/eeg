@@ -92,6 +92,9 @@ def main(argv):
     elif active == 'EEG-ITNet':
         from train.eeg_itnet import start
         start(config)
+    elif active == 'ViT':
+        from train.vit import start
+        start(config)
     else:
         raise NotImplementedError
 

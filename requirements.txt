@@ -1,5 +1,6 @@
 pytest == 8.3.3
 torch == 2.5.1+cu124
+torch-geometric == 2.6.1
 tensorflow == 2.16.2
 tensorflow-addons == 0.22.0
 scipy == 1.14.1
