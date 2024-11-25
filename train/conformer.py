@@ -80,7 +80,8 @@ def a_model(config):
     batch_size = 1
     shuffle_test = True
     shuffle_spilt = 3
-    num_epochs = 100
+    num_epochs = 150
+    best_accuracy = 0.8
 
     model = Conformer(
         input_channels=input_channels,
@@ -133,7 +134,7 @@ def a_model(config):
             bands
         )
 
-    return model, x_train, x_test, y_train, y_test, criterion, optimizer, num_epochs, batch_size
+    return model, x_train, x_test, y_train, y_test, criterion, optimizer, num_epochs, batch_size, best_accuracy
 
 
 def b_model(config):
@@ -166,13 +167,14 @@ def b_model(config):
     input_channels = len(bands)
     dim = 40
     heads = 10
-    depth = 6
+    depth = 2
     method = FeatureMethod.DE_LDS
     all_trails = list(range(0, 24))
     batch_size = 1
     shuffle_test = True
     shuffle_spilt = 2
-    num_epochs = 100
+    num_epochs = 150
+    best_accuracy = 0.7
 
     model = Conformer(
         input_channels=input_channels,
@@ -219,14 +221,18 @@ def b_model(config):
             bands
         )
 
-    return model, x_train, x_test, y_train, y_test, criterion, optimizer, num_epochs, batch_size
+    return model, x_train, x_test, y_train, y_test, criterion, optimizer, num_epochs, batch_size, best_accuracy
 
 
 def start(config):
     if config.conformer['experiment'] == 'A':
-        model, x_train, x_test, y_train, y_test, criterion, optimizer, epochs, batch_size = a_model(config)
+        model, x_train, x_test, y_train, y_test, criterion, optimizer, epochs, batch_size, best_accuracy = a_model(
+            config
+        )
     elif config.conformer['experiment'] == 'B':
-        model, x_train, x_test, y_train, y_test, criterion, optimizer, epochs, batch_size = b_model(config)
+        model, x_train, x_test, y_train, y_test, criterion, optimizer, epochs, batch_size, best_accuracy = b_model(
+            config
+        )
     else:
         raise NotImplementedError
 
@@ -301,6 +307,14 @@ def start(config):
         test_losses.append(test_loss)
         test_accuracies.append(test_accuracy)
         print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
+
+        if test_accuracy > best_accuracy:
+            best_accuracy = test_accuracy
+            torch.save(
+                model.state_dict(),
+                f'./saved/{config.conformer["experiment"]}_{test_accuracy:.4f}.pth'
+            )
+            print(f'Epoch {epoch + 1}: {config.conformer["experiment"]} model saved with accuracy {test_accuracy:.4f}')
 
     print("-" * 64)
 

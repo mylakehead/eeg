@@ -215,11 +215,10 @@ class ConvModule(nn.Module):
             nn.Conv2d(dim, dim, (block_size, 1)),
             nn.BatchNorm2d(dim),
             nn.ELU(),
-            # nn.Dropout(0.5),
+            nn.Dropout(0.5),
         )
 
         self.projection = nn.Sequential(
-            nn.Conv2d(dim, dim, (1, 1), stride=(1, 1)),
             Rearrange('b e (h) (w) -> b (h w) e'),
         )
 
