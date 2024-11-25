@@ -25,12 +25,12 @@ def a_model(config):
     sessions = [
         Session.ONE, Session.TWO, Session.THREE
     ]
-    bands = [Band.ALPHA, Band.BETA, Band.GAMMA]
+    bands = [Band.DELTA, Band.THETA, Band.ALPHA, Band.BETA, Band.GAMMA]
     block_size = 10
     input_channels = len(bands)
     dim = 40
     heads = 10
-    depth = 6
+    depth = 2
     method = FeatureMethod.DE_LDS
     all_trails = list(range(0, 24))
     train_trials = list(range(0, 16))

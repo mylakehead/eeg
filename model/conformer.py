@@ -40,13 +40,6 @@ class MultiHeadAttention(nn.Module):
         self.projection = nn.Linear(dim, dim)
 
     def forward(self, x: Tensor, mask: Tensor = None) -> Tensor:
-        """Forward pass for the multi-head attention module.
-        
-        Args:
-            x (Tensor): The input tensor.
-            mask (Tensor, optional): The mask tensor. Defaults to None.
-        """
-        # output shape: 1 10 41 4
         queries = rearrange(self.queries(x), "b n (h d) -> b h n d", h=self.heads)
         keys = rearrange(self.keys(x), "b n (h d) -> b h n d", h=self.heads)
         values = rearrange(self.values(x), "b n (h d) -> b h n d", h=self.heads)
